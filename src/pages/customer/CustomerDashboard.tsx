@@ -20,12 +20,12 @@ export function CustomerDashboard() {
           <h1 className="text-2xl font-bold text-slate-900">Welcome, {user?.name}</h1>
           <p className="text-slate-500">Manage your support tickets and chat with AI</p>
         </div>
-        <div className="flex gap-2">
-          <Link to="/customer/chat">
-            <Button variant="secondary"><MessageSquare className="h-4 w-4" /> AI Chat</Button>
+        <div className="flex gap-2 max-sm:w-full max-sm:flex-col sm:flex-row">
+          <Link to="/customer/chat" className="max-sm:w-full">
+            <Button variant="secondary" className="w-full"><MessageSquare className="h-4 w-4" /> AI Chat</Button>
           </Link>
-          <Link to="/customer/new-ticket">
-            <Button><Plus className="h-4 w-4" /> New Ticket</Button>
+          <Link to="/customer/new-ticket" className="max-sm:w-full">
+            <Button className="w-full"><Plus className="h-4 w-4" /> New Ticket</Button>
           </Link>
         </div>
       </div>

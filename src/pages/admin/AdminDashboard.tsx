@@ -42,23 +42,23 @@ export function AdminDashboard() {
         <Card title="Agent Workload">
           <div className="space-y-4">
             {mockAgentWorkloads.map((w) => (
-              <div key={w.agentId} className="flex items-center gap-4">
-                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-brand-100 text-sm font-bold text-brand-700">
+              <div key={w.agentId} className="flex flex-wrap items-center gap-3 sm:gap-4">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand-100 text-sm font-bold text-brand-700">
                   {w.agentName.charAt(0)}
                 </div>
-                <div className="flex-1">
-                  <p className="text-sm font-medium">{w.agentName}</p>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-medium">{w.agentName}</p>
                   <div className="mt-1 flex items-center gap-2">
-                    <div className="flex-1 rounded-full bg-slate-100 h-2">
+                    <div className="min-w-0 flex-1 rounded-full bg-slate-100 h-2">
                       <div
                         className="h-2 rounded-full bg-emerald-500"
                         style={{ width: `${(w.openTickets / w.maxTickets) * 100}%` }}
                       />
                     </div>
-                    <span className="text-xs text-slate-500">{w.openTickets}/{w.maxTickets}</span>
+                    <span className="shrink-0 text-xs text-slate-500">{w.openTickets}/{w.maxTickets}</span>
                   </div>
                 </div>
-                <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${w.isAvailable ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}>
+                <span className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ${w.isAvailable ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}>
                   {w.isAvailable ? 'Online' : 'Offline'}
                 </span>
               </div>
@@ -86,12 +86,12 @@ export function AdminDashboard() {
         <Card title="Recent Activity">
           <div className="space-y-3">
             {mockTickets.slice(0, 4).map((t) => (
-              <div key={t.id} className="flex items-center justify-between text-sm">
-                <div>
+              <div key={t.id} className="flex flex-col gap-1 text-sm sm:flex-row sm:items-center sm:justify-between">
+                <div className="min-w-0">
                   <span className="font-mono text-xs text-slate-400">{t.id}</span>
-                  <p className="font-medium text-slate-700">{t.subject}</p>
+                  <p className="truncate font-medium text-slate-700">{t.subject}</p>
                 </div>
-                <span className="capitalize text-xs text-slate-400">{t.status.replace('_', ' ')}</span>
+                <span className="shrink-0 capitalize text-xs text-slate-400">{t.status.replace('_', ' ')}</span>
               </div>
             ))}
           </div>

@@ -32,7 +32,7 @@ export function MessageBubble({ message }: MessageBubbleProps) {
           <Icon className="h-4 w-4" />
         </div>
       )}
-      <div className={clsx('max-w-[75%] space-y-1', message.role === 'user' && 'order-first')}>
+      <div className={clsx('max-w-[85%] space-y-1 sm:max-w-[75%]', message.role === 'user' && 'order-first')}>
         <div className={clsx('rounded-2xl px-4 py-2.5 text-sm leading-relaxed shadow-sm', config.bubble)}>
           {message.content}
         </div>
@@ -83,18 +83,18 @@ export function ChatWindow({ messages, onSend, placeholder = 'Type your message.
         ))}
       </div>
       {onSend && (
-        <form onSubmit={handleSubmit} className="border-t border-slate-200 bg-white p-4">
-          <div className="flex gap-2">
+        <form onSubmit={handleSubmit} className="border-t border-slate-200 bg-white p-3 sm:p-4">
+          <div className="flex flex-col gap-2 sm:flex-row">
             <input
               name="message"
               disabled={disabled}
               placeholder={placeholder}
-              className="flex-1 rounded-lg border border-slate-200 px-4 py-2.5 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100 disabled:opacity-50"
+              className="min-w-0 flex-1 rounded-lg border border-slate-200 px-4 py-2.5 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100 disabled:opacity-50"
             />
             <button
               type="submit"
               disabled={disabled}
-              className="rounded-lg bg-brand-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-50"
+              className="shrink-0 rounded-lg bg-brand-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-50 sm:self-stretch"
             >
               Send
             </button>

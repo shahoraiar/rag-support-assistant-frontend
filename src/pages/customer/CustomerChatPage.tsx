@@ -57,16 +57,18 @@ export function CustomerChatPage() {
   };
 
   return (
-    <div className="mx-auto flex h-[calc(100vh-8rem)] max-w-3xl flex-col space-y-4">
+    <div className="mx-auto flex min-h-[60dvh] max-w-3xl flex-col space-y-4 lg:min-h-[calc(100dvh-10rem)]">
       <div>
         <div className="flex items-center gap-2">
-          <Bot className="h-6 w-6 text-brand-600" />
-          <h1 className="text-2xl font-bold text-slate-900">AI Support Chat</h1>
+          <Bot className="h-6 w-6 shrink-0 text-brand-600" />
+          <h1 className="text-xl font-bold text-slate-900 sm:text-2xl">AI Support Chat</h1>
         </div>
-        <p className="text-slate-500">Ask questions — answers come from company knowledge base (RAG demo)</p>
+        <p className="text-sm text-slate-500 sm:text-base">
+          Ask questions — answers come from company knowledge base (RAG demo)
+        </p>
       </div>
 
-      <div className="flex-1">
+      <div className="min-h-0 flex-1">
         <ChatWindow
           messages={messages}
           onSend={handleSend}
@@ -79,7 +81,7 @@ export function CustomerChatPage() {
         <p className="text-center text-sm text-slate-400">AI is searching knowledge base...</p>
       )}
 
-      <div className="rounded-lg border border-brand-100 bg-brand-50 px-4 py-3 text-sm text-brand-700">
+      <div className="rounded-lg border border-brand-100 bg-brand-50 px-3 py-3 text-xs text-brand-700 sm:px-4 sm:text-sm">
         Try: &quot;What is your refund policy?&quot; or &quot;How do I cancel my subscription?&quot;
       </div>
     </div>

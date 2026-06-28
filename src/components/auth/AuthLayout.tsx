@@ -11,7 +11,7 @@ const features = ['RAG Pipeline', 'Real-time Chat', 'SLA Monitoring', 'Auto Clas
 
 export function AuthLayout({ children, title, subtitle }: AuthLayoutProps) {
   return (
-    <div className="flex min-h-screen">
+    <div className="flex min-h-dvh overflow-x-hidden">
       <div className="hidden w-1/2 flex-col justify-between bg-slate-900 p-12 lg:flex">
         <div className="flex items-center gap-3">
           <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-600">
@@ -40,8 +40,8 @@ export function AuthLayout({ children, title, subtitle }: AuthLayoutProps) {
         <p className="text-sm text-slate-500">Portfolio Demo — Frontend with Mock Data</p>
       </div>
 
-      <div className="flex flex-1 flex-col items-center justify-center px-6 py-10">
-        <div className="w-full max-w-md">
+      <div className="flex min-w-0 flex-1 flex-col items-center justify-center px-4 py-8 sm:px-6 sm:py-10">
+        <div className="w-full max-w-md min-w-0">
           <div className="mb-8 text-center lg:text-left">
             <div className="mb-4 flex items-center justify-center gap-2 lg:hidden">
               <Bot className="h-8 w-8 text-brand-600" />
@@ -64,7 +64,7 @@ export function AuthDivider() {
         <div className="w-full border-t border-slate-200" />
       </div>
       <div className="relative flex justify-center text-xs uppercase">
-        <span className="bg-slate-50 px-3 text-slate-400">or continue with</span>
+        <span className="bg-white px-3 text-slate-400 sm:bg-slate-50">or continue with</span>
       </div>
     </div>
   );

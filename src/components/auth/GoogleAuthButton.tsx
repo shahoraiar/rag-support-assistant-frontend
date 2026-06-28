@@ -85,7 +85,7 @@ export function GoogleAuthButton({ onSuccess, onError, label = 'Continue with Go
   }
 
   return (
-    <div className="flex w-full justify-center [&>div]:w-full [&>div>div]:!w-full">
+    <div className="w-full overflow-hidden [&>div]:!w-full [&>div>div]:!w-full">
       <GoogleLogin
         onSuccess={handleSuccess}
         onError={() => onError?.()}
@@ -93,7 +93,6 @@ export function GoogleAuthButton({ onSuccess, onError, label = 'Continue with Go
         size="large"
         text="continue_with"
         shape="rectangular"
-        width="400"
       />
     </div>
   );

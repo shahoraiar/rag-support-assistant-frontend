@@ -59,33 +59,41 @@ export function DashboardLayout() {
   };
 
   return (
-    <div className="flex min-h-screen bg-slate-50">
-      {/* Mobile overlay */}
+    <div className="min-h-dvh bg-slate-50 lg:flex">
       {sidebarOpen && (
-        <div className="fixed inset-0 z-40 bg-black/30 lg:hidden" onClick={() => setSidebarOpen(false)} />
+        <div
+          className="fixed inset-0 z-40 bg-black/30 lg:hidden"
+          onClick={() => setSidebarOpen(false)}
+          aria-hidden="true"
+        />
       )}
 
-      {/* Sidebar */}
       <aside
         className={clsx(
-          'fixed inset-y-0 left-0 z-50 flex w-64 flex-col bg-slate-900 transition-transform lg:static lg:translate-x-0',
-          sidebarOpen ? 'translate-x-0' : '-translate-x-full',
+          'fixed inset-y-0 left-0 z-50 flex w-64 max-w-[85vw] flex-col bg-slate-900 transition-transform duration-200',
+          'lg:static lg:z-auto lg:max-w-none lg:shrink-0 lg:translate-x-0',
+          sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0',
         )}
       >
-        <div className="flex items-center gap-3 border-b border-slate-700 px-6 py-5">
-          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-brand-600">
+        <div className="flex items-center gap-3 border-b border-slate-700 px-4 py-4 sm:px-6 sm:py-5">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand-600">
             <Bot className="h-5 w-5 text-white" />
           </div>
-          <div>
+          <div className="min-w-0">
             <h1 className="font-bold text-white">SupportAI</h1>
             <p className="text-xs capitalize text-slate-400">{user.role} portal</p>
           </div>
-          <button className="ml-auto text-slate-400 lg:hidden" onClick={() => setSidebarOpen(false)}>
+          <button
+            type="button"
+            className="ml-auto text-slate-400 lg:hidden"
+            onClick={() => setSidebarOpen(false)}
+            aria-label="Close menu"
+          >
             <X className="h-5 w-5" />
           </button>
         </div>
 
-        <nav className="flex-1 space-y-1 px-3 py-4">
+        <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-4">
           {navItems.map((item) => (
             <NavLink
               key={item.to}
@@ -99,7 +107,7 @@ export function DashboardLayout() {
                 )
               }
             >
-              <item.icon className="h-5 w-5" />
+              <item.icon className="h-5 w-5 shrink-0" />
               {item.label}
             </NavLink>
           ))}
@@ -107,7 +115,7 @@ export function DashboardLayout() {
 
         <div className="border-t border-slate-700 p-4">
           <div className="mb-3 flex items-center gap-3">
-            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-brand-600 text-sm font-bold text-white">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-brand-600 text-sm font-bold text-white">
               {user.name.charAt(0)}
             </div>
             <div className="min-w-0 flex-1">
@@ -116,6 +124,7 @@ export function DashboardLayout() {
             </div>
           </div>
           <button
+            type="button"
             onClick={handleLogout}
             className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-slate-400 transition hover:bg-slate-800 hover:text-white"
           >
@@ -125,18 +134,25 @@ export function DashboardLayout() {
         </div>
       </aside>
 
-      {/* Main content */}
-      <div className="flex flex-1 flex-col">
-        <header className="flex items-center gap-4 border-b border-slate-200 bg-white px-4 py-3 lg:px-8">
-          <button className="text-slate-600 lg:hidden" onClick={() => setSidebarOpen(true)}>
+      <div className="flex min-h-dvh min-w-0 flex-1 flex-col">
+        <header className="sticky top-0 z-30 flex items-center gap-3 border-b border-slate-200 bg-white px-4 py-3 lg:px-8">
+          <button
+            type="button"
+            className="shrink-0 text-slate-600 lg:hidden"
+            onClick={() => setSidebarOpen(true)}
+            aria-label="Open menu"
+          >
             <Menu className="h-6 w-6" />
           </button>
-          <div className="flex-1" />
-          <span className="rounded-full bg-brand-50 px-3 py-1 text-xs font-medium text-brand-700">
+          <div className="min-w-0 flex-1" />
+          <span className="hidden shrink-0 rounded-full bg-brand-50 px-3 py-1 text-xs font-medium text-brand-700 sm:inline">
             Demo Mode — Mock Data
           </span>
+          <span className="shrink-0 rounded-full bg-brand-50 px-2 py-1 text-xs font-medium text-brand-700 sm:hidden">
+            Demo
+          </span>
         </header>
-        <main className="flex-1 overflow-auto p-4 lg:p-8">
+        <main className="min-w-0 flex-1 overflow-x-hidden p-4 sm:p-6 lg:p-8">
           <Outlet />
         </main>
       </div>

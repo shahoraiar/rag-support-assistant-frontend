@@ -103,9 +103,9 @@ export function CreateTicketPage() {
             placeholder="Explain your problem in detail — the more context, the better AI can classify and route your ticket..."
             rows={6}
           />
-          <div className="flex justify-end gap-2 pt-2">
-            <Button type="button" variant="secondary" onClick={() => navigate('/customer')}>Cancel</Button>
-            <Button type="submit">Submit Ticket</Button>
+          <div className="flex flex-col gap-2 pt-2 sm:flex-row sm:justify-end">
+            <Button type="button" variant="secondary" className="w-full sm:w-auto" onClick={() => navigate('/customer')}>Cancel</Button>
+            <Button type="submit" className="w-full sm:w-auto">Submit Ticket</Button>
           </div>
         </form>
       </Card>

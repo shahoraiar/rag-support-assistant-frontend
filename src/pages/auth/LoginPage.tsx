@@ -5,6 +5,7 @@ import { AuthDivider, AuthLayout } from '../../components/auth/AuthLayout';
 import { GoogleAuthButton } from '../../components/auth/GoogleAuthButton';
 import { useAuth } from '../../context/AuthContext';
 import { demoLoginAccounts } from '../../data/mockData';
+import { getAllUsers } from '../../data/userStore';
 import { Button } from '../../components/ui/Button';
 
 export function LoginPage() {
@@ -26,9 +27,9 @@ export function LoginPage() {
 
   const handleLogin = (loginEmail?: string) => {
     const e = loginEmail || email;
-    if (login(e)) {
-      const u = demoLoginAccounts.find((a) => a.email === e) || { role: 'customer' as const };
-      redirectByRole(u.role);
+    const found = getAllUsers().find((u) => u.email.toLowerCase() === e.toLowerCase());
+    if (found && login(e)) {
+      redirectByRole(found.role);
     } else {
       setError('Invalid email. Sign up or use a demo account below.');
     }
@@ -122,10 +123,10 @@ export function LoginPage() {
               key={acc.email}
               type="button"
               onClick={() => handleLogin(acc.email)}
-              className="flex w-full items-center justify-between rounded-lg border border-slate-200 px-4 py-3 text-left text-sm transition hover:border-brand-300 hover:bg-brand-50"
+              className="flex w-full flex-col gap-1 rounded-lg border border-slate-200 px-4 py-3 text-left text-sm transition hover:border-brand-300 hover:bg-brand-50 sm:flex-row sm:items-center sm:justify-between"
             >
               <span className="font-medium text-slate-700">{acc.label}</span>
-              <span className="text-xs text-slate-400">{acc.email}</span>
+              <span className="truncate text-xs text-slate-400">{acc.email}</span>
             </button>
           ))}
         </div>

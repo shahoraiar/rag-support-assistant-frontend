@@ -1,27 +1,36 @@
 import { useState } from 'react';
+import { ArrowLeft } from 'lucide-react';
 import { mockChatSessions } from '../../data/mockData';
 import { ChatWindow } from '../../components/chat/ChatWindow';
+import { Button } from '../../components/ui/Button';
 import clsx from 'clsx';
 
 export function AgentChatPage() {
   const escalated = mockChatSessions.filter((s) => !s.isAiHandled);
   const [activeId, setActiveId] = useState(escalated[0]?.id || '');
+  const [mobileShowChat, setMobileShowChat] = useState(false);
 
   const session = escalated.find((s) => s.id === activeId);
 
+  const handleSelect = (id: string) => {
+    setActiveId(id);
+    setMobileShowChat(true);
+  };
+
   return (
-    <div className="space-y-6">
+    <div className="flex min-h-0 flex-col space-y-4 sm:space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-slate-900">Live Chat</h1>
-        <p className="text-slate-500">Escalated conversations from AI</p>
+        <h1 className="text-xl font-bold text-slate-900 sm:text-2xl">Live Chat</h1>
+        <p className="text-sm text-slate-500 sm:text-base">Escalated conversations from AI</p>
       </div>
 
-      <div className="grid h-[calc(100vh-12rem)] gap-4 lg:grid-cols-4">
-        <div className="space-y-2 overflow-y-auto lg:col-span-1">
+      <div className="flex min-h-[60dvh] flex-col gap-4 lg:grid lg:min-h-[calc(100dvh-12rem)] lg:grid-cols-4">
+        <div className={`space-y-2 overflow-y-auto lg:col-span-1 ${mobileShowChat ? 'hidden lg:block' : ''}`}>
           {escalated.map((s) => (
             <button
               key={s.id}
-              onClick={() => setActiveId(s.id)}
+              type="button"
+              onClick={() => handleSelect(s.id)}
               className={clsx(
                 'w-full rounded-lg border p-3 text-left text-sm transition',
                 activeId === s.id ? 'border-brand-300 bg-brand-50' : 'border-slate-200 bg-white hover:bg-slate-50',
@@ -35,15 +44,27 @@ export function AgentChatPage() {
             </button>
           ))}
         </div>
-        <div className="lg:col-span-3">
+
+        <div className={`flex min-h-[50dvh] flex-col lg:col-span-3 ${!mobileShowChat ? 'hidden lg:flex' : 'flex'}`}>
           {session ? (
-            <ChatWindow
-              messages={session.messages}
-              onSend={() => {}}
-              placeholder="Reply as agent..."
-            />
+            <>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="mb-2 self-start lg:hidden"
+                onClick={() => setMobileShowChat(false)}
+              >
+                <ArrowLeft className="h-4 w-4" />
+                Back to chats
+              </Button>
+              <ChatWindow
+                messages={session.messages}
+                onSend={() => {}}
+                placeholder="Reply as agent..."
+              />
+            </>
           ) : (
-            <div className="flex h-full items-center justify-center rounded-xl border border-dashed border-slate-200 text-slate-400">
+            <div className="flex flex-1 items-center justify-center rounded-xl border border-dashed border-slate-200 text-sm text-slate-400">
               No escalated chats
             </div>
           )}

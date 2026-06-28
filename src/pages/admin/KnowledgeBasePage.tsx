@@ -19,11 +19,11 @@ export function KnowledgeBasePage() {
           <h1 className="text-2xl font-bold text-slate-900">Knowledge Base</h1>
           <p className="text-slate-500">Documents for RAG — upload PDFs, FAQs, and docs</p>
         </div>
-        <Button><Upload className="h-4 w-4" /> Upload Document</Button>
+        <Button className="w-full sm:w-auto"><Upload className="h-4 w-4" /> Upload Document</Button>
       </div>
 
       {/* Upload zone (demo) */}
-      <div className="rounded-xl border-2 border-dashed border-slate-200 bg-slate-50 p-8 text-center">
+      <div className="rounded-xl border-2 border-dashed border-slate-200 bg-slate-50 p-6 text-center sm:p-8">
         <Upload className="mx-auto h-10 w-10 text-slate-300" />
         <p className="mt-2 font-medium text-slate-600">Drag & drop files here</p>
         <p className="text-sm text-slate-400">PDF, DOCX, FAQ text — processed by Celery (backend later)</p>

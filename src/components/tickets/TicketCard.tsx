@@ -1,4 +1,3 @@
-import clsx from 'clsx';
 import type { Ticket } from '../../types';
 import { Badge } from '../ui/Badge';
 
@@ -59,7 +58,7 @@ export function TicketList({ tickets, onSelect, showCustomer, emptyMessage = 'No
   }
 
   return (
-    <div className={clsx('grid gap-3', tickets.length > 1 && 'md:grid-cols-2')}>
+    <div className="grid gap-3">
       {tickets.map((t) => (
         <TicketCard key={t.id} ticket={t} onClick={() => onSelect?.(t)} showCustomer={showCustomer} />
       ))}

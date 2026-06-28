@@ -1,5 +1,10 @@
 import { createContext, useContext, useState, type ReactNode } from 'react';
-import { mockUsers } from '../data/mockData';
+import {
+  emailExists,
+  getAllUsers,
+  loadRegisteredUsers,
+  saveRegisteredUsers,
+} from '../data/userStore';
 import type { User, UserRole } from '../types';
 
 interface GoogleProfile {
@@ -23,21 +28,6 @@ interface AuthContextType {
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
-
-const REGISTERED_USERS_KEY = 'supportai_registered_users';
-
-function loadRegisteredUsers(): User[] {
-  const saved = localStorage.getItem(REGISTERED_USERS_KEY);
-  return saved ? JSON.parse(saved) : [];
-}
-
-function saveRegisteredUsers(users: User[]) {
-  localStorage.setItem(REGISTERED_USERS_KEY, JSON.stringify(users));
-}
-
-function getAllUsers(): User[] {
-  return [...mockUsers, ...loadRegisteredUsers()];
-}
 
 function persistUser(user: User) {
   localStorage.setItem('supportai_user', JSON.stringify(user));
@@ -70,7 +60,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return { success: false, error: 'Password must be at least 6 characters.' };
     }
 
-    const exists = getAllUsers().some((u) => u.email.toLowerCase() === normalizedEmail);
+    const exists = emailExists(normalizedEmail);
     if (exists) {
       return { success: false, error: 'An account with this email already exists.' };
     }

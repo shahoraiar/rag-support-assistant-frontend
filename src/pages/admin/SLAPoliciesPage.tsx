@@ -6,12 +6,12 @@ import { Button } from '../../components/ui/Button';
 export function SLAPoliciesPage() {
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">SLA Policies</h1>
-          <p className="text-slate-500">Response and resolution deadlines by priority</p>
+          <h1 className="text-xl font-bold text-slate-900 sm:text-2xl">SLA Policies</h1>
+          <p className="text-sm text-slate-500 sm:text-base">Response and resolution deadlines by priority</p>
         </div>
-        <Button variant="secondary">Add Policy</Button>
+        <Button variant="secondary" className="w-full sm:w-auto">Add Policy</Button>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2">

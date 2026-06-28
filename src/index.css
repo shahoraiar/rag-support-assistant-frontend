@@ -9,8 +9,18 @@
   --color-brand-900: #1e3a8a;
 }
 
+html {
+  overflow-x: hidden;
+}
+
 body {
-  @apply bg-slate-50 text-slate-900 antialiased;
+  @apply min-h-dvh overflow-x-hidden bg-slate-50 text-slate-900 antialiased;
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom)
+    env(safe-area-inset-left);
+}
+
+#root {
+  @apply min-h-dvh;
 }
 
 ::-webkit-scrollbar {

@@ -150,15 +150,15 @@ export function TicketConversation({ comments, ticket }: TicketConversationProps
         <div className="space-y-3">
           {comments.map((c) => (
             <div key={c.id} className="rounded-lg border border-slate-100 bg-slate-50 p-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <div className="flex h-7 w-7 items-center justify-center rounded-full bg-brand-100 text-xs font-bold text-brand-700">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                <div className="flex min-w-0 flex-wrap items-center gap-2">
+                  <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-brand-100 text-xs font-bold text-brand-700">
                     {c.senderName.charAt(0)}
                   </div>
                   <span className="text-sm font-medium text-slate-800">{c.senderName}</span>
                   <span className="rounded bg-brand-50 px-1.5 py-0.5 text-xs text-brand-600">Support Agent</span>
                 </div>
-                <span className="text-xs text-slate-400">{new Date(c.createdAt).toLocaleString()}</span>
+                <span className="shrink-0 text-xs text-slate-400">{new Date(c.createdAt).toLocaleString()}</span>
               </div>
               <p className="mt-2 text-sm leading-relaxed text-slate-700">{c.content}</p>
             </div>

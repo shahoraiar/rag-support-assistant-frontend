@@ -1,18 +1,20 @@
 import { useState } from 'react';
+import { ArrowLeft, Bell } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { mockTickets, mockComments, mockTicketActivities } from '../../data/mockData';
 import { TicketList } from '../../components/tickets/TicketCard';
 import { Badge } from '../../components/ui/Badge';
 import { Card } from '../../components/ui/Card';
+import { Button } from '../../components/ui/Button';
 import { TicketTimeline, TicketStatusBanner, TicketConversation } from '../../components/tickets/TicketTimeline';
 import type { Ticket } from '../../types';
-import { Bell } from 'lucide-react';
 
 export function CustomerTicketsPage() {
   const { user } = useAuth();
   const myTickets = mockTickets.filter((t) => t.customerId === user?.id);
   const [selected, setSelected] = useState<Ticket | null>(myTickets[0] || null);
   const [filter, setFilter] = useState<string>('all');
+  const [mobileShowDetail, setMobileShowDetail] = useState(false);
 
   const filtered = filter === 'all' ? myTickets : myTickets.filter((t) => t.status === filter);
   const comments = selected ? mockComments.filter((c) => c.ticketId === selected.id && !c.isInternal) : [];
@@ -24,28 +26,37 @@ export function CustomerTicketsPage() {
 
   const waitingCount = myTickets.filter((t) => t.status === 'open' && !t.assignedAgentId).length;
 
+  const handleSelect = (ticket: Ticket) => {
+    setSelected(ticket);
+    setMobileShowDetail(true);
+  };
+
+  const handleBack = () => {
+    setMobileShowDetail(false);
+  };
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">My Tickets</h1>
-          <p className="text-slate-500">{myTickets.length} total tickets</p>
+          <h1 className="text-xl font-bold text-slate-900 sm:text-2xl">My Tickets</h1>
+          <p className="text-sm text-slate-500 sm:text-base">{myTickets.length} total tickets</p>
         </div>
         {waitingCount > 0 && (
-          <div className="flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
-            <Bell className="h-4 w-4" />
+          <div className="flex w-full items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800 sm:w-auto">
+            <Bell className="h-4 w-4 shrink-0" />
             {waitingCount} ticket{waitingCount > 1 ? 's' : ''} waiting for agent
           </div>
         )}
       </div>
 
-      <div className="flex flex-wrap gap-2">
+      <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1">
         {['all', 'open', 'in_progress', 'resolved', 'closed'].map((f) => (
           <button
             key={f}
             onClick={() => setFilter(f)}
-            className={`rounded-lg px-3 py-1.5 text-sm font-medium capitalize transition ${
-              filter === f ? 'bg-brand-600 text-white' : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
+            className={`shrink-0 rounded-lg px-3 py-1.5 text-sm font-medium capitalize transition ${
+              filter === f ? 'bg-brand-600 text-white' : 'border border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
             }`}
           >
             {f.replace('_', ' ')}
@@ -53,13 +64,23 @@ export function CustomerTicketsPage() {
         ))}
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-5">
-        <div className="lg:col-span-2">
-          <TicketList tickets={filtered} onSelect={setSelected} />
+      <div className="grid gap-4 lg:grid-cols-5 lg:gap-6">
+        <div className={`lg:col-span-2 ${mobileShowDetail ? 'hidden lg:block' : ''}`}>
+          <TicketList tickets={filtered} onSelect={handleSelect} />
         </div>
-        <div className="lg:col-span-3 space-y-4">
+        <div className={`space-y-4 lg:col-span-3 ${!mobileShowDetail ? 'hidden lg:block' : ''}`}>
           {selected ? (
             <>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="lg:hidden"
+                onClick={handleBack}
+              >
+                <ArrowLeft className="h-4 w-4" />
+                Back to tickets
+              </Button>
+
               <TicketStatusBanner ticket={selected} hasReplies={comments.length > 0} />
 
               <Card title={selected.subject} subtitle={selected.id}>
@@ -80,7 +101,7 @@ export function CustomerTicketsPage() {
               </Card>
             </>
           ) : (
-            <div className="flex h-64 items-center justify-center rounded-xl border border-dashed border-slate-200 text-slate-400">
+            <div className="flex h-48 items-center justify-center rounded-xl border border-dashed border-slate-200 text-sm text-slate-400 sm:h-64">
               Select a ticket to view details
             </div>
           )}

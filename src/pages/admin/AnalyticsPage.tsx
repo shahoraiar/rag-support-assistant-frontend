@@ -38,19 +38,19 @@ export function AnalyticsPage() {
 
         <Card title="Performance Summary">
           <div className="space-y-4 text-sm">
-            <div className="flex justify-between rounded-lg bg-slate-50 p-3">
+            <div className="flex flex-col gap-1 rounded-lg bg-slate-50 p-3 text-sm sm:flex-row sm:justify-between">
               <span className="text-slate-600">Total Tickets (all time)</span>
               <span className="font-bold">{mockAnalytics.totalTickets}</span>
             </div>
-            <div className="flex justify-between rounded-lg bg-slate-50 p-3">
+            <div className="flex flex-col gap-1 rounded-lg bg-slate-50 p-3 text-sm sm:flex-row sm:justify-between">
               <span className="text-slate-600">Currently Open</span>
               <span className="font-bold text-amber-600">{mockAnalytics.openTickets}</span>
             </div>
-            <div className="flex justify-between rounded-lg bg-emerald-50 p-3">
+            <div className="flex flex-col gap-1 rounded-lg bg-emerald-50 p-3 text-sm sm:flex-row sm:justify-between">
               <span className="text-slate-600">SLA Compliance</span>
               <span className="font-bold text-emerald-600">{mockAnalytics.slaCompliance}%</span>
             </div>
-            <div className="flex justify-between rounded-lg bg-purple-50 p-3">
+            <div className="flex flex-col gap-1 rounded-lg bg-purple-50 p-3 text-sm sm:flex-row sm:justify-between">
               <span className="text-slate-600">AI Handled (no agent)</span>
               <span className="font-bold text-purple-600">{mockAnalytics.aiResolutionRate}%</span>
             </div>
