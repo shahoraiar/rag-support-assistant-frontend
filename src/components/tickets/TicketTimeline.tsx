@@ -23,7 +23,7 @@ export function TicketTimeline({ activities }: TicketTimelineProps) {
   return (
     <div className="space-y-0">
       {activities.map((activity, index) => {
-        const config = activityConfig[activity.type];
+        const config = activityConfig[activity.type] || activityConfig.created;
         const Icon = config.icon;
         const isLast = index === activities.length - 1;
 
@@ -131,9 +131,22 @@ export function TicketStatusBanner({ ticket, hasReplies }: TicketStatusBannerPro
 interface TicketConversationProps {
   comments: TicketComment[];
   ticket: Ticket;
+  replyText?: string;
+  onReplyTextChange?: (value: string) => void;
+  onSendReply?: () => void;
+  sending?: boolean;
+  currentUserId?: string;
 }
 
-export function TicketConversation({ comments, ticket }: TicketConversationProps) {
+export function TicketConversation({
+  comments,
+  ticket,
+  replyText = '',
+  onReplyTextChange,
+  onSendReply,
+  sending = false,
+  currentUserId,
+}: TicketConversationProps) {
   const canReply = ticket.status === 'open' || ticket.status === 'in_progress';
 
   return (
@@ -148,34 +161,46 @@ export function TicketConversation({ comments, ticket }: TicketConversationProps
         </div>
       ) : (
         <div className="space-y-3">
-          {comments.map((c) => (
-            <div key={c.id} className="rounded-lg border border-slate-100 bg-slate-50 p-4">
-              <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-                <div className="flex min-w-0 flex-wrap items-center gap-2">
-                  <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-brand-100 text-xs font-bold text-brand-700">
-                    {c.senderName.charAt(0)}
+          {comments.map((c) => {
+            const isOwn = currentUserId != null && c.senderId === currentUserId;
+            return (
+              <div key={c.id} className="rounded-lg border border-slate-100 bg-slate-50 p-4">
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                  <div className="flex min-w-0 flex-wrap items-center gap-2">
+                    <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-brand-100 text-xs font-bold text-brand-700">
+                      {c.senderName.charAt(0)}
+                    </div>
+                    <span className="text-sm font-medium text-slate-800">{c.senderName}</span>
+                    <span className="rounded bg-brand-50 px-1.5 py-0.5 text-xs text-brand-600">
+                      {isOwn ? 'You' : 'Participant'}
+                    </span>
                   </div>
-                  <span className="text-sm font-medium text-slate-800">{c.senderName}</span>
-                  <span className="rounded bg-brand-50 px-1.5 py-0.5 text-xs text-brand-600">Support Agent</span>
+                  <span className="shrink-0 text-xs text-slate-400">{new Date(c.createdAt).toLocaleString()}</span>
                 </div>
-                <span className="shrink-0 text-xs text-slate-400">{new Date(c.createdAt).toLocaleString()}</span>
+                <p className="mt-2 text-sm leading-relaxed text-slate-700">{c.content}</p>
               </div>
-              <p className="mt-2 text-sm leading-relaxed text-slate-700">{c.content}</p>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 
-      {canReply && (
+      {canReply && onSendReply && (
         <div className="rounded-lg border border-slate-200 bg-white p-3">
           <textarea
+            value={replyText}
+            onChange={(e) => onReplyTextChange?.(e.target.value)}
             placeholder="Write a follow-up message..."
             className="w-full resize-none rounded-lg border-0 bg-transparent text-sm outline-none placeholder:text-slate-400"
             rows={2}
           />
           <div className="mt-2 flex justify-end">
-            <button className="rounded-lg bg-brand-600 px-4 py-1.5 text-sm font-medium text-white hover:bg-brand-700">
-              Send Reply
+            <button
+              type="button"
+              disabled={sending || !replyText.trim()}
+              onClick={onSendReply}
+              className="rounded-lg bg-brand-600 px-4 py-1.5 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-50"
+            >
+              {sending ? 'Sending…' : 'Send Reply'}
             </button>
           </div>
         </div>

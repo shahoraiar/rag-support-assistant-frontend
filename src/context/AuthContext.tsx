@@ -1,28 +1,27 @@
-import { createContext, useContext, useState, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 import {
-  emailExists,
-  getAllUsers,
-  loadRegisteredUsers,
-  saveRegisteredUsers,
-} from '../data/userStore';
+  clearTokens,
+  fetchCurrentUser,
+  googleLoginApi,
+  hasAccessToken,
+  loginApi,
+  mapApiUser,
+  registerApi,
+} from '../lib/api';
 import type { User, UserRole } from '../types';
-
-interface GoogleProfile {
-  email: string;
-  name: string;
-  picture?: string;
-}
 
 interface RegisterResult {
   success: boolean;
   error?: string;
+  user?: User;
 }
 
 interface AuthContextType {
   user: User | null;
-  login: (email: string) => boolean;
-  register: (name: string, email: string, password: string) => RegisterResult;
-  loginWithGoogle: (profile: GoogleProfile) => void;
+  loading: boolean;
+  login: (email: string, password?: string) => Promise<User | null>;
+  register: (name: string, email: string, password: string) => Promise<RegisterResult>;
+  loginWithGoogle: (credential: string) => Promise<RegisterResult>;
   logout: () => void;
   isRole: (role: UserRole) => boolean;
 }
@@ -34,87 +33,103 @@ function persistUser(user: User) {
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(() => {
-    const saved = localStorage.getItem('supportai_user');
-    return saved ? JSON.parse(saved) : null;
-  });
+  const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
 
   const setAuthenticatedUser = (nextUser: User) => {
     setUser(nextUser);
     persistUser(nextUser);
   };
 
-  const login = (email: string) => {
-    const found = getAllUsers().find((u) => u.email.toLowerCase() === email.toLowerCase());
-    if (found) {
-      setAuthenticatedUser(found);
-      return true;
+  useEffect(() => {
+    let cancelled = false;
+
+    async function restoreSession() {
+      if (!hasAccessToken()) {
+        localStorage.removeItem('supportai_user');
+        if (!cancelled) {
+          setUser(null);
+          setLoading(false);
+        }
+        return;
+      }
+
+      try {
+        const me = await fetchCurrentUser();
+        if (!cancelled) setAuthenticatedUser(me);
+      } catch {
+        clearTokens();
+        localStorage.removeItem('supportai_user');
+        if (!cancelled) setUser(null);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
     }
-    return false;
+
+    restoreSession();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const login = async (email: string, password = 'demo1234') => {
+    try {
+      const data = await loginApi(email, password);
+      const nextUser = mapApiUser(data.user);
+      setAuthenticatedUser(nextUser);
+      return nextUser;
+    } catch {
+      return null;
+    }
   };
 
-  const register = (name: string, email: string, password: string): RegisterResult => {
-    const normalizedEmail = email.trim().toLowerCase();
-
+  const register = async (name: string, email: string, password: string): Promise<RegisterResult> => {
     if (password.length < 6) {
       return { success: false, error: 'Password must be at least 6 characters.' };
     }
 
-    const exists = emailExists(normalizedEmail);
-    if (exists) {
-      return { success: false, error: 'An account with this email already exists.' };
+    try {
+      const data = await registerApi({
+        name: name.trim(),
+        email: email.trim().toLowerCase(),
+        password,
+        role: 'customer',
+      });
+      const nextUser = mapApiUser(data.user);
+      setAuthenticatedUser(nextUser);
+      return { success: true, user: nextUser };
+    } catch (err) {
+      return {
+        success: false,
+        error: err instanceof Error ? err.message : 'Registration failed. Please try again.',
+      };
     }
-
-    const newUser: User = {
-      id: `u${Date.now()}`,
-      name: name.trim(),
-      email: normalizedEmail,
-      role: 'customer',
-    };
-
-    const registered = loadRegisteredUsers();
-    registered.push(newUser);
-    saveRegisteredUsers(registered);
-    setAuthenticatedUser(newUser);
-    return { success: true };
   };
 
-  const loginWithGoogle = (profile: GoogleProfile) => {
-    const normalizedEmail = profile.email.toLowerCase();
-    const existing = getAllUsers().find((u) => u.email.toLowerCase() === normalizedEmail);
-
-    if (existing) {
-      setAuthenticatedUser({
-        ...existing,
-        name: profile.name || existing.name,
-        avatar: profile.picture || existing.avatar,
-      });
-      return;
+  const loginWithGoogle = async (credential: string): Promise<RegisterResult> => {
+    try {
+      const data = await googleLoginApi(credential);
+      const nextUser = mapApiUser(data.user);
+      setAuthenticatedUser(nextUser);
+      return { success: true, user: nextUser };
+    } catch (err) {
+      return {
+        success: false,
+        error: err instanceof Error ? err.message : 'Google sign-in failed. Please try again.',
+      };
     }
-
-    const newUser: User = {
-      id: `u${Date.now()}`,
-      name: profile.name,
-      email: normalizedEmail,
-      role: 'customer',
-      avatar: profile.picture,
-    };
-
-    const registered = loadRegisteredUsers();
-    registered.push(newUser);
-    saveRegisteredUsers(registered);
-    setAuthenticatedUser(newUser);
   };
 
   const logout = () => {
     setUser(null);
     localStorage.removeItem('supportai_user');
+    clearTokens();
   };
 
   const isRole = (role: UserRole) => user?.role === role;
 
   return (
-    <AuthContext.Provider value={{ user, login, register, loginWithGoogle, logout, isRole }}>
+    <AuthContext.Provider value={{ user, loading, login, register, loginWithGoogle, logout, isRole }}>
       {children}
     </AuthContext.Provider>
   );

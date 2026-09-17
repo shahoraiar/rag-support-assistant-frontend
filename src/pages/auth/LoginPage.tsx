@@ -5,16 +5,23 @@ import { AuthDivider, AuthLayout } from '../../components/auth/AuthLayout';
 import { GoogleAuthButton } from '../../components/auth/GoogleAuthButton';
 import { useAuth } from '../../context/AuthContext';
 import { demoLoginAccounts } from '../../data/mockData';
-import { getAllUsers } from '../../data/userStore';
 import { Button } from '../../components/ui/Button';
 
 export function LoginPage() {
-  const { login, loginWithGoogle, user } = useAuth();
+  const { login, loginWithGoogle, user, loading } = useAuth();
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
+
+  if (loading) {
+    return (
+      <div className="flex min-h-dvh items-center justify-center bg-slate-50 text-sm text-slate-500">
+        Loading session…
+      </div>
+    );
+  }
 
   if (user) {
     const redirect = user.role === 'customer' ? '/customer' : user.role === 'agent' ? '/agent' : '/admin';
@@ -25,24 +32,28 @@ export function LoginPage() {
     navigate(role === 'customer' ? '/customer' : role === 'agent' ? '/agent' : '/admin');
   };
 
-  const handleLogin = (loginEmail?: string) => {
+  const handleLogin = async (loginEmail?: string, loginPassword = 'demo1234') => {
     const e = loginEmail || email;
-    const found = getAllUsers().find((u) => u.email.toLowerCase() === e.toLowerCase());
-    if (found && login(e)) {
-      redirectByRole(found.role);
-    } else {
-      setError('Invalid email. Sign up or use a demo account below.');
+    const loggedIn = await login(e, loginEmail ? loginPassword : password || loginPassword);
+    if (loggedIn) {
+      redirectByRole(loggedIn.role);
+      return;
     }
+    setError('Invalid email or password. Sign up or use a demo account below.');
   };
 
-  const handleSubmit = (e: FormEvent) => {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    handleLogin();
+    await handleLogin();
   };
 
-  const handleGoogleSuccess = (profile: { email: string; name: string; picture?: string }) => {
-    loginWithGoogle(profile);
-    navigate('/customer');
+  const handleGoogleSuccess = async (credential: string) => {
+    const result = await loginWithGoogle(credential);
+    if (result.success && result.user) {
+      redirectByRole(result.user.role);
+      return;
+    }
+    setError(result.error || 'Google sign-in is unavailable.');
   };
 
   return (

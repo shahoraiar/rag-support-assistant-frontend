@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Card } from '../../components/ui/Card';
 import { Input, Textarea } from '../../components/ui/Input';
 import { Button } from '../../components/ui/Button';
+import { createTicket } from '../../lib/api';
 import { CheckCircle, Clock, Sparkles, UserPlus, Bell, Info } from 'lucide-react';
 
 const nextSteps = [
@@ -10,18 +11,30 @@ const nextSteps = [
   { icon: Sparkles, title: 'AI classifies (5 sec)', desc: 'Category and priority set automatically from your description', color: 'text-purple-600' },
   { icon: Clock, title: 'Waiting for agent', desc: 'Ticket goes to queue — status shows "Open"', color: 'text-amber-600' },
   { icon: UserPlus, title: 'Agent picks up', desc: 'Status changes to "In Progress" — you see agent name', color: 'text-emerald-600' },
-  { icon: Bell, title: 'Agent replies', desc: 'Reply appears in ticket + notification (WebSocket later)', color: 'text-brand-600' },
+  { icon: Bell, title: 'Agent replies', desc: 'Reply appears in ticket + notification', color: 'text-brand-600' },
 ];
 
 export function CreateTicketPage() {
   const navigate = useNavigate();
   const [submitted, setSubmitted] = useState(false);
-  const [newTicketId] = useState(`T-${1007 + Math.floor(Math.random() * 100)}`);
+  const [newTicketId, setNewTicketId] = useState('');
   const [form, setForm] = useState({ subject: '', description: '' });
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setSubmitted(true);
+    setError('');
+    setLoading(true);
+    try {
+      const ticket = await createTicket(form.subject.trim(), form.description.trim());
+      setNewTicketId(ticket.id);
+      setSubmitted(true);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not create ticket.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   if (submitted) {
@@ -103,9 +116,12 @@ export function CreateTicketPage() {
             placeholder="Explain your problem in detail — the more context, the better AI can classify and route your ticket..."
             rows={6}
           />
+          {error && <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">{error}</p>}
           <div className="flex flex-col gap-2 pt-2 sm:flex-row sm:justify-end">
             <Button type="button" variant="secondary" className="w-full sm:w-auto" onClick={() => navigate('/customer')}>Cancel</Button>
-            <Button type="submit" className="w-full sm:w-auto">Submit Ticket</Button>
+            <Button type="submit" className="w-full sm:w-auto" disabled={loading}>
+              {loading ? 'Submitting…' : 'Submit Ticket'}
+            </Button>
           </div>
         </form>
       </Card>

@@ -4,7 +4,7 @@ import { Modal } from '../ui/Modal';
 import { Input } from '../ui/Input';
 import { Button } from '../ui/Button';
 import { Badge } from '../ui/Badge';
-import { createAgentUser, emailExists } from '../../data/userStore';
+import { mapApiUser, registerApi } from '../../lib/api';
 import type { User } from '../../types';
 
 interface AddUserModalProps {
@@ -37,7 +37,7 @@ export function AddUserModal({ open, onClose, onCreated }: AddUserModalProps) {
     onClose();
   };
 
-  const handleSubmit = (event: FormEvent) => {
+  const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
     setError('');
 
@@ -57,16 +57,22 @@ export function AddUserModal({ open, onClose, onCreated }: AddUserModalProps) {
       setError('Passwords do not match.');
       return;
     }
-    if (emailExists(email)) {
-      setError('An account with this email already exists.');
-      return;
-    }
 
     setLoading(true);
-    const user = createAgentUser({ name, email });
-    onCreated(user);
-    resetForm();
-    onClose();
+    try {
+      const data = await registerApi({
+        name: name.trim(),
+        email: email.trim().toLowerCase(),
+        password,
+        role: 'agent',
+      });
+      onCreated(mapApiUser(data.user));
+      resetForm();
+      onClose();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to create agent');
+      setLoading(false);
+    }
   };
 
   return (

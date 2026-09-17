@@ -7,7 +7,7 @@ import { useAuth } from '../../context/AuthContext';
 import { Button } from '../../components/ui/Button';
 
 export function RegisterPage() {
-  const { register, loginWithGoogle, user } = useAuth();
+  const { register, loginWithGoogle, user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
 
   const [name, setName] = useState('');
@@ -18,12 +18,20 @@ export function RegisterPage() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
+  if (authLoading) {
+    return (
+      <div className="flex min-h-dvh items-center justify-center bg-slate-50 text-sm text-slate-500">
+        Loading session…
+      </div>
+    );
+  }
+
   if (user) {
     const redirect = user.role === 'customer' ? '/customer' : user.role === 'agent' ? '/agent' : '/admin';
     return <Navigate to={redirect} replace />;
   }
 
-  const handleSubmit = (e: FormEvent) => {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setError('');
 
@@ -41,7 +49,7 @@ export function RegisterPage() {
     }
 
     setLoading(true);
-    const result = register(name, email, password);
+    const result = await register(name, email, password);
     setLoading(false);
 
     if (result.success) {
@@ -51,9 +59,14 @@ export function RegisterPage() {
     }
   };
 
-  const handleGoogleSuccess = (profile: { email: string; name: string; picture?: string }) => {
-    loginWithGoogle(profile);
-    navigate('/customer');
+  const handleGoogleSuccess = async (credential: string) => {
+    const result = await loginWithGoogle(credential);
+    if (result.success && result.user) {
+      const role = result.user.role;
+      navigate(role === 'customer' ? '/customer' : role === 'agent' ? '/agent' : '/admin');
+      return;
+    }
+    setError(result.error || 'Google sign-up is unavailable.');
   };
 
   return (

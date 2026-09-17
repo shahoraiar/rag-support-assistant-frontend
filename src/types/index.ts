@@ -1,4 +1,5 @@
 export type UserRole = 'customer' | 'agent' | 'admin';
+export type UserSource = 'email' | 'google';
 
 export type TicketStatus = 'open' | 'in_progress' | 'resolved' | 'closed';
 export type TicketPriority = 'low' | 'medium' | 'high' | 'urgent';
@@ -11,6 +12,7 @@ export interface User {
   name: string;
   email: string;
   role: UserRole;
+  source?: UserSource;
   avatar?: string;
   isAvailable?: boolean;
 }

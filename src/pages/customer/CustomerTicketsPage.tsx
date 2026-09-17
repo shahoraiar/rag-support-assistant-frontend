@@ -1,38 +1,108 @@
-import { useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { ArrowLeft, Bell } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
-import { mockTickets, mockComments, mockTicketActivities } from '../../data/mockData';
+import {
+  fetchTicketActivities,
+  fetchTicketComments,
+  fetchTickets,
+  postTicketComment,
+} from '../../lib/api';
 import { TicketList } from '../../components/tickets/TicketCard';
 import { Badge } from '../../components/ui/Badge';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { TicketTimeline, TicketStatusBanner, TicketConversation } from '../../components/tickets/TicketTimeline';
-import type { Ticket } from '../../types';
+import type { Ticket, TicketActivity, TicketComment } from '../../types';
 
 export function CustomerTicketsPage() {
   const { user } = useAuth();
-  const myTickets = mockTickets.filter((t) => t.customerId === user?.id);
-  const [selected, setSelected] = useState<Ticket | null>(myTickets[0] || null);
+  const [tickets, setTickets] = useState<Ticket[]>([]);
+  const [selected, setSelected] = useState<Ticket | null>(null);
+  const [comments, setComments] = useState<TicketComment[]>([]);
+  const [activities, setActivities] = useState<TicketActivity[]>([]);
   const [filter, setFilter] = useState<string>('all');
   const [mobileShowDetail, setMobileShowDetail] = useState(false);
+  const [replyText, setReplyText] = useState('');
+  const [sending, setSending] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
-  const filtered = filter === 'all' ? myTickets : myTickets.filter((t) => t.status === filter);
-  const comments = selected ? mockComments.filter((c) => c.ticketId === selected.id && !c.isInternal) : [];
-  const activities = selected
-    ? mockTicketActivities.filter((a) => a.ticketId === selected.id).sort(
-        (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
-      )
-    : [];
+  const loadTickets = useCallback(async () => {
+    setLoading(true);
+    setError('');
+    try {
+      const data = await fetchTickets();
+      setTickets(data);
+      setSelected((current) => {
+        if (!current) return data[0] || null;
+        return data.find((t) => t.id === current.id) || data[0] || null;
+      });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load tickets');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
-  const waitingCount = myTickets.filter((t) => t.status === 'open' && !t.assignedAgentId).length;
+  useEffect(() => {
+    loadTickets();
+  }, [loadTickets]);
+
+  useEffect(() => {
+    if (!selected) {
+      setComments([]);
+      setActivities([]);
+      return;
+    }
+
+    let cancelled = false;
+    async function loadDetail() {
+      try {
+        const [nextComments, nextActivities] = await Promise.all([
+          fetchTicketComments(selected!.id),
+          fetchTicketActivities(selected!.id),
+        ]);
+        if (!cancelled) {
+          setComments(nextComments);
+          setActivities(nextActivities);
+        }
+      } catch (err) {
+        if (!cancelled) {
+          setError(err instanceof Error ? err.message : 'Failed to load ticket details');
+        }
+      }
+    }
+
+    loadDetail();
+    return () => {
+      cancelled = true;
+    };
+  }, [selected?.id]);
+
+  const filtered = filter === 'all' ? tickets : tickets.filter((t) => t.status === filter);
+  const waitingCount = tickets.filter((t) => t.status === 'open' && !t.assignedAgentId).length;
 
   const handleSelect = (ticket: Ticket) => {
     setSelected(ticket);
+    setReplyText('');
     setMobileShowDetail(true);
   };
 
-  const handleBack = () => {
-    setMobileShowDetail(false);
+  const handleSendReply = async () => {
+    if (!selected || !replyText.trim()) return;
+    setSending(true);
+    setError('');
+    try {
+      const comment = await postTicketComment(selected.id, replyText.trim());
+      setComments((prev) => [...prev, comment]);
+      setReplyText('');
+      const nextActivities = await fetchTicketActivities(selected.id);
+      setActivities(nextActivities);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to send reply');
+    } finally {
+      setSending(false);
+    }
   };
 
   return (
@@ -40,7 +110,7 @@ export function CustomerTicketsPage() {
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <h1 className="text-xl font-bold text-slate-900 sm:text-2xl">My Tickets</h1>
-          <p className="text-sm text-slate-500 sm:text-base">{myTickets.length} total tickets</p>
+          <p className="text-sm text-slate-500 sm:text-base">{tickets.length} total tickets</p>
         </div>
         {waitingCount > 0 && (
           <div className="flex w-full items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800 sm:w-auto">
@@ -49,6 +119,9 @@ export function CustomerTicketsPage() {
           </div>
         )}
       </div>
+
+      {error && <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">{error}</p>}
+      {loading && <p className="text-sm text-slate-500">Loading tickets…</p>}
 
       <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1">
         {['all', 'open', 'in_progress', 'resolved', 'closed'].map((f) => (
@@ -75,7 +148,7 @@ export function CustomerTicketsPage() {
                 variant="ghost"
                 size="sm"
                 className="lg:hidden"
-                onClick={handleBack}
+                onClick={() => setMobileShowDetail(false)}
               >
                 <ArrowLeft className="h-4 w-4" />
                 Back to tickets
@@ -97,12 +170,20 @@ export function CustomerTicketsPage() {
               </Card>
 
               <Card>
-                <TicketConversation comments={comments} ticket={selected} />
+                <TicketConversation
+                  comments={comments}
+                  ticket={selected}
+                  replyText={replyText}
+                  onReplyTextChange={setReplyText}
+                  onSendReply={handleSendReply}
+                  sending={sending}
+                  currentUserId={user?.id}
+                />
               </Card>
             </>
           ) : (
             <div className="flex h-48 items-center justify-center rounded-xl border border-dashed border-slate-200 text-sm text-slate-400 sm:h-64">
-              Select a ticket to view details
+              {loading ? 'Loading…' : 'Select a ticket to view details'}
             </div>
           )}
         </div>

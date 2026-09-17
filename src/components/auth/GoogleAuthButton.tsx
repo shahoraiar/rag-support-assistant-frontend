@@ -1,25 +1,10 @@
 import { GoogleLogin, type CredentialResponse } from '@react-oauth/google';
 import clsx from 'clsx';
 
-interface GoogleProfile {
-  email: string;
-  name: string;
-  picture?: string;
-}
-
 interface GoogleAuthButtonProps {
-  onSuccess: (profile: GoogleProfile) => void;
+  onSuccess: (credential: string) => void;
   onError?: () => void;
   label?: string;
-}
-
-function parseGoogleCredential(credential: string): GoogleProfile {
-  const payload = JSON.parse(atob(credential.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')));
-  return {
-    email: payload.email as string,
-    name: (payload.name as string) || (payload.email as string).split('@')[0],
-    picture: payload.picture as string | undefined,
-  };
 }
 
 function GoogleIcon({ className }: { className?: string }) {
@@ -45,30 +30,6 @@ function GoogleIcon({ className }: { className?: string }) {
   );
 }
 
-function DemoGoogleButton({ onSuccess, label }: { onSuccess: (profile: GoogleProfile) => void; label: string }) {
-  const handleDemoGoogle = () => {
-    onSuccess({
-      email: 'google.demo@example.com',
-      name: 'Google Demo User',
-      picture: undefined,
-    });
-  };
-
-  return (
-    <button
-      type="button"
-      onClick={handleDemoGoogle}
-      className={clsx(
-        'flex w-full items-center justify-center gap-3 rounded-lg border border-slate-200 bg-white px-4 py-2.5',
-        'text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-50',
-      )}
-    >
-      <GoogleIcon className="h-5 w-5" />
-      {label}
-    </button>
-  );
-}
-
 export function GoogleAuthButton({ onSuccess, onError, label = 'Continue with Google' }: GoogleAuthButtonProps) {
   const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
 
@@ -77,11 +38,23 @@ export function GoogleAuthButton({ onSuccess, onError, label = 'Continue with Go
       onError?.();
       return;
     }
-    onSuccess(parseGoogleCredential(response.credential));
+    onSuccess(response.credential);
   };
 
   if (!clientId) {
-    return <DemoGoogleButton onSuccess={onSuccess} label={label} />;
+    return (
+      <button
+        type="button"
+        disabled
+        className={clsx(
+          'flex w-full items-center justify-center gap-3 rounded-lg border border-slate-200 bg-slate-50 px-4 py-2.5',
+          'cursor-not-allowed text-sm font-medium text-slate-400',
+        )}
+      >
+        <GoogleIcon className="h-5 w-5 opacity-50" />
+        {label} (set VITE_GOOGLE_CLIENT_ID)
+      </button>
+    );
   }
 
   return (
@@ -93,6 +66,7 @@ export function GoogleAuthButton({ onSuccess, onError, label = 'Continue with Go
         size="large"
         text="continue_with"
         shape="rectangular"
+        width="100%"
       />
     </div>
   );

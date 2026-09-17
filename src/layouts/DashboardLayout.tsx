@@ -145,11 +145,11 @@ export function DashboardLayout() {
             <Menu className="h-6 w-6" />
           </button>
           <div className="min-w-0 flex-1" />
-          <span className="hidden shrink-0 rounded-full bg-brand-50 px-3 py-1 text-xs font-medium text-brand-700 sm:inline">
-            Demo Mode — Mock Data
+          <span className="hidden shrink-0 rounded-full bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-700 sm:inline">
+            Live API
           </span>
-          <span className="shrink-0 rounded-full bg-brand-50 px-2 py-1 text-xs font-medium text-brand-700 sm:hidden">
-            Demo
+          <span className="shrink-0 rounded-full bg-emerald-50 px-2 py-1 text-xs font-medium text-emerald-700 sm:hidden">
+            Live
           </span>
         </header>
         <main className="min-w-0 flex-1 overflow-x-hidden p-4 sm:p-6 lg:p-8">
