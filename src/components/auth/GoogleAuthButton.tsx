@@ -58,16 +58,20 @@ export function GoogleAuthButton({ onSuccess, onError, label = 'Continue with Go
   }
 
   return (
-    <div className="w-full overflow-hidden [&>div]:!w-full [&>div>div]:!w-full">
-      <GoogleLogin
-        onSuccess={handleSuccess}
-        onError={() => onError?.()}
-        theme="outline"
-        size="large"
-        text="continue_with"
-        shape="rectangular"
-        width="100%"
-      />
+    <div className="flex w-full justify-center">
+      {/* GIS iframe text size is fixed by Google — scale makes "Continue as" read larger */}
+      <div className="origin-center scale-[1.12] [&>div]:flex [&>div]:justify-center">
+        <GoogleLogin
+          onSuccess={handleSuccess}
+          onError={() => onError?.()}
+          theme="outline"
+          size="large"
+          text="continue_with"
+          shape="rectangular"
+          width={360}
+          logo_alignment="center"
+        />
+      </div>
     </div>
   );
 }
