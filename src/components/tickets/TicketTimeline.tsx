@@ -1,3 +1,4 @@
+import { useRef } from 'react';
 import { Bot, Clock, Headphones, CheckCircle, MessageSquare, UserPlus, Sparkles } from 'lucide-react';
 import clsx from 'clsx';
 import type { Ticket, TicketActivity, TicketComment } from '../../types';
@@ -136,6 +137,9 @@ interface TicketConversationProps {
   onSendReply?: () => void;
   sending?: boolean;
   currentUserId?: string;
+  peerTypingLabel?: string | null;
+  liveStatus?: string | null;
+  onTypingChange?: (isTyping: boolean) => void;
 }
 
 export function TicketConversation({
@@ -146,12 +150,29 @@ export function TicketConversation({
   onSendReply,
   sending = false,
   currentUserId,
+  peerTypingLabel,
+  liveStatus,
+  onTypingChange,
 }: TicketConversationProps) {
   const canReply = ticket.status === 'open' || ticket.status === 'in_progress';
+  const typingIdleRef = useRef<number | null>(null);
+
+  const handleTextChange = (value: string) => {
+    onReplyTextChange?.(value);
+    if (!onTypingChange) return;
+    onTypingChange(true);
+    if (typingIdleRef.current) window.clearTimeout(typingIdleRef.current);
+    typingIdleRef.current = window.setTimeout(() => onTypingChange(false), 1200);
+  };
 
   return (
     <div className="space-y-4">
-      <h4 className="font-medium text-slate-900">Conversation</h4>
+      <div className="flex items-center justify-between gap-2">
+        <h4 className="font-medium text-slate-900">Conversation</h4>
+        {liveStatus && (
+          <span className="text-xs font-medium text-emerald-600">{liveStatus}</span>
+        )}
+      </div>
 
       {comments.length === 0 ? (
         <div className="rounded-lg border border-dashed border-slate-200 py-8 text-center">
@@ -174,21 +195,32 @@ export function TicketConversation({
                     <span className="rounded bg-brand-50 px-1.5 py-0.5 text-xs text-brand-600">
                       {isOwn ? 'You' : 'Participant'}
                     </span>
+                    {c.isInternal && (
+                      <span className="rounded bg-amber-50 px-1.5 py-0.5 text-xs text-amber-700">Internal</span>
+                    )}
                   </div>
                   <span className="shrink-0 text-xs text-slate-400">{new Date(c.createdAt).toLocaleString()}</span>
                 </div>
                 <p className="mt-2 text-sm leading-relaxed text-slate-700">{c.content}</p>
+                {isOwn && c.seenAt && (
+                  <p className="mt-1 text-right text-xs font-medium text-brand-600">Seen</p>
+                )}
               </div>
             );
           })}
         </div>
       )}
 
+      {peerTypingLabel && (
+        <p className="text-xs italic text-slate-400">{peerTypingLabel}</p>
+      )}
+
       {canReply && onSendReply && (
         <div className="rounded-lg border border-slate-200 bg-white p-3">
           <textarea
             value={replyText}
-            onChange={(e) => onReplyTextChange?.(e.target.value)}
+            onChange={(e) => handleTextChange(e.target.value)}
+            onBlur={() => onTypingChange?.(false)}
             placeholder="Write a follow-up message..."
             className="w-full resize-none rounded-lg border-0 bg-transparent text-sm outline-none placeholder:text-slate-400"
             rows={2}
@@ -197,7 +229,10 @@ export function TicketConversation({
             <button
               type="button"
               disabled={sending || !replyText.trim()}
-              onClick={onSendReply}
+              onClick={() => {
+                onTypingChange?.(false);
+                onSendReply();
+              }}
               className="rounded-lg bg-brand-600 px-4 py-1.5 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-50"
             >
               {sending ? 'Sending…' : 'Send Reply'}

@@ -7,12 +7,26 @@ import {
   fetchTickets,
   postTicketComment,
 } from '../../lib/api';
+import { useTicketSocket, type TicketCommentSocketPayload } from '../../lib/useTicketSocket';
 import { TicketList } from '../../components/tickets/TicketCard';
 import { Badge } from '../../components/ui/Badge';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { TicketTimeline, TicketStatusBanner, TicketConversation } from '../../components/tickets/TicketTimeline';
 import type { Ticket, TicketActivity, TicketComment } from '../../types';
+
+function mapSocketComment(message: TicketCommentSocketPayload, ticketId: string): TicketComment {
+  return {
+    id: String(message.id),
+    ticketId,
+    senderId: String(message.sender_id),
+    senderName: message.sender_name,
+    content: message.content,
+    isInternal: message.is_internal,
+    createdAt: message.created_at,
+    seenAt: message.seen_at ?? null,
+  };
+}
 
 export function CustomerTicketsPage() {
   const { user } = useAuth();
@@ -26,6 +40,33 @@ export function CustomerTicketsPage() {
   const [sending, setSending] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+
+  const currentUserId = user?.id ? Number(user.id) : null;
+
+  const upsertComment = useCallback((message: TicketCommentSocketPayload) => {
+    if (!selected) return;
+    if (message.is_internal) return;
+    const mapped = mapSocketComment(message, selected.id);
+    setComments((prev) => {
+      if (prev.some((c) => c.id === mapped.id)) {
+        return prev.map((c) => (c.id === mapped.id ? { ...c, ...mapped } : c));
+      }
+      return [...prev, mapped];
+    });
+  }, [selected]);
+
+  const applySeen = useCallback((messageIds: number[], seenAt: string) => {
+    const idSet = new Set(messageIds.map(String));
+    setComments((prev) => prev.map((c) => (idSet.has(c.id) ? { ...c, seenAt } : c)));
+  }, []);
+
+  const { connected, status, peerTyping, sendMessage, sendTyping, sendSeen } = useTicketSocket({
+    ticketUid: selected?.id ?? null,
+    currentUserId,
+    onMessage: upsertComment,
+    onSeen: applySeen,
+    onError: (detail) => setError(detail),
+  });
 
   const loadTickets = useCallback(async () => {
     setLoading(true);
@@ -79,6 +120,34 @@ export function CustomerTicketsPage() {
     };
   }, [selected?.id]);
 
+  useEffect(() => {
+    if (!connected) return;
+    sendSeen();
+  }, [connected, comments.length, sendSeen]);
+
+  // REST backup while ticket is open
+  useEffect(() => {
+    if (!selected?.id) return;
+    const id = window.setInterval(async () => {
+      try {
+        const next = await fetchTicketComments(selected.id);
+        setComments((prev) => {
+          const byId = new Map(prev.map((c) => [c.id, c]));
+          for (const c of next) {
+            const existing = byId.get(c.id);
+            byId.set(c.id, existing ? { ...existing, ...c } : c);
+          }
+          return Array.from(byId.values()).sort(
+            (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
+          );
+        });
+      } catch {
+        // ignore
+      }
+    }, 5000);
+    return () => window.clearInterval(id);
+  }, [selected?.id]);
+
   const filtered = filter === 'all' ? tickets : tickets.filter((t) => t.status === filter);
   const waitingCount = tickets.filter((t) => t.status === 'open' && !t.assignedAgentId).length;
 
@@ -90,11 +159,16 @@ export function CustomerTicketsPage() {
 
   const handleSendReply = async () => {
     if (!selected || !replyText.trim()) return;
+    const text = replyText.trim();
     setSending(true);
     setError('');
+    sendTyping(false);
     try {
-      const comment = await postTicketComment(selected.id, replyText.trim());
-      setComments((prev) => [...prev, comment]);
+      const ok = sendMessage(text);
+      if (!ok) {
+        const comment = await postTicketComment(selected.id, text);
+        setComments((prev) => (prev.some((c) => c.id === comment.id) ? prev : [...prev, comment]));
+      }
       setReplyText('');
       const nextActivities = await fetchTicketActivities(selected.id);
       setActivities(nextActivities);
@@ -104,6 +178,12 @@ export function CustomerTicketsPage() {
       setSending(false);
     }
   };
+
+  const liveLabel =
+    status === 'live' ? 'Live' : status === 'connecting' ? 'Connecting…' : status === 'error' ? 'Reconnecting…' : null;
+  const peerTypingLabel = peerTyping?.isTyping
+    ? `${peerTyping.name || 'Agent'} is typing…`
+    : null;
 
   return (
     <div className="space-y-4 sm:space-y-6">
@@ -178,6 +258,9 @@ export function CustomerTicketsPage() {
                   onSendReply={handleSendReply}
                   sending={sending}
                   currentUserId={user?.id}
+                  peerTypingLabel={peerTypingLabel}
+                  liveStatus={liveLabel}
+                  onTypingChange={sendTyping}
                 />
               </Card>
             </>

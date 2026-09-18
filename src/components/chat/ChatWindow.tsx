@@ -1,9 +1,11 @@
 import clsx from 'clsx';
 import { Bot, User, Headphones, Info } from 'lucide-react';
-import type { ChatMessage } from '../../types';
+import { useEffect, useRef } from 'react';
+import type { ChatMessage, MessageRole, UserRole } from '../../types';
 
 interface MessageBubbleProps {
   message: ChatMessage;
+  isOwn: boolean;
 }
 
 const roleConfig = {
@@ -13,9 +15,13 @@ const roleConfig = {
   system: { icon: Info, bg: 'bg-slate-100 text-slate-500', align: 'justify-center', bubble: 'bg-slate-100 text-slate-500 text-xs italic' },
 };
 
-export function MessageBubble({ message }: MessageBubbleProps) {
+export function MessageBubble({ message, isOwn }: MessageBubbleProps) {
   const config = roleConfig[message.role];
   const Icon = config.icon;
+  const align = isOwn ? 'justify-end' : config.align;
+  const bubble = isOwn
+    ? 'bg-brand-600 text-white rounded-br-sm'
+    : config.bubble;
 
   if (message.role === 'system') {
     return (
@@ -26,14 +32,14 @@ export function MessageBubble({ message }: MessageBubbleProps) {
   }
 
   return (
-    <div className={clsx('flex gap-2', config.align)}>
-      {message.role !== 'user' && (
+    <div className={clsx('flex gap-2', align)}>
+      {!isOwn && (
         <div className={clsx('flex h-8 w-8 shrink-0 items-center justify-center rounded-full', config.bg)}>
           <Icon className="h-4 w-4" />
         </div>
       )}
-      <div className={clsx('max-w-[85%] space-y-1 sm:max-w-[75%]', message.role === 'user' && 'order-first')}>
-        <div className={clsx('rounded-2xl px-4 py-2.5 text-sm leading-relaxed shadow-sm', config.bubble)}>
+      <div className={clsx('max-w-[85%] space-y-1 sm:max-w-[75%]', isOwn && 'order-first')}>
+        <div className={clsx('rounded-2xl px-4 py-2.5 text-sm leading-relaxed shadow-sm', bubble)}>
           {message.content}
         </div>
         {message.sources && message.sources.length > 0 && (
@@ -46,15 +52,24 @@ export function MessageBubble({ message }: MessageBubbleProps) {
             ))}
           </div>
         )}
-        <p className="text-xs text-slate-400">{new Date(message.createdAt).toLocaleTimeString()}</p>
+        <div className={clsx('flex items-center gap-2 px-1 text-xs text-slate-400', isOwn && 'justify-end')}>
+          <span>{new Date(message.createdAt).toLocaleTimeString()}</span>
+          {isOwn && message.seenAt && <span className="font-medium text-brand-600">Seen</span>}
+        </div>
       </div>
-      {message.role === 'user' && (
-        <div className={clsx('flex h-8 w-8 shrink-0 items-center justify-center rounded-full', config.bg)}>
-          <Icon className="h-4 w-4" />
+      {isOwn && (
+        <div className={clsx('flex h-8 w-8 shrink-0 items-center justify-center rounded-full', 'bg-brand-600 text-white')}>
+          <User className="h-4 w-4" />
         </div>
       )}
     </div>
   );
+}
+
+function ownRoleForViewer(viewerRole?: UserRole): MessageRole | null {
+  if (viewerRole === 'customer') return 'user';
+  if (viewerRole === 'agent' || viewerRole === 'admin') return 'agent';
+  return null;
 }
 
 interface ChatWindowProps {
@@ -62,25 +77,56 @@ interface ChatWindowProps {
   onSend?: (text: string) => void;
   placeholder?: string;
   disabled?: boolean;
+  viewerRole?: UserRole;
+  peerTypingLabel?: string | null;
+  onTypingChange?: (isTyping: boolean) => void;
 }
 
-export function ChatWindow({ messages, onSend, placeholder = 'Type your message...', disabled }: ChatWindowProps) {
+export function ChatWindow({
+  messages,
+  onSend,
+  placeholder = 'Type your message...',
+  disabled,
+  viewerRole,
+  peerTypingLabel,
+  onTypingChange,
+}: ChatWindowProps) {
+  const bottomRef = useRef<HTMLDivElement>(null);
+  const typingIdleRef = useRef<number | null>(null);
+  const ownRole = ownRoleForViewer(viewerRole);
+
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages, peerTypingLabel]);
+
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const form = e.currentTarget;
     const input = form.elements.namedItem('message') as HTMLInputElement;
     if (input.value.trim() && onSend) {
+      onTypingChange?.(false);
       onSend(input.value.trim());
       input.value = '';
     }
+  };
+
+  const handleInput = () => {
+    if (!onTypingChange) return;
+    onTypingChange(true);
+    if (typingIdleRef.current) window.clearTimeout(typingIdleRef.current);
+    typingIdleRef.current = window.setTimeout(() => onTypingChange(false), 1200);
   };
 
   return (
     <div className="flex h-full flex-col rounded-xl border border-slate-200 bg-slate-50">
       <div className="flex-1 space-y-4 overflow-y-auto p-4">
         {messages.map((m) => (
-          <MessageBubble key={m.id} message={m} />
+          <MessageBubble key={m.id} message={m} isOwn={Boolean(ownRole && m.role === ownRole)} />
         ))}
+        {peerTypingLabel && (
+          <p className="px-2 text-xs text-slate-400 italic">{peerTypingLabel}</p>
+        )}
+        <div ref={bottomRef} />
       </div>
       {onSend && (
         <form onSubmit={handleSubmit} className="border-t border-slate-200 bg-white p-3 sm:p-4">
@@ -89,6 +135,8 @@ export function ChatWindow({ messages, onSend, placeholder = 'Type your message.
               name="message"
               disabled={disabled}
               placeholder={placeholder}
+              onChange={handleInput}
+              onBlur={() => onTypingChange?.(false)}
               className="min-w-0 flex-1 rounded-lg border border-slate-200 px-4 py-2.5 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100 disabled:opacity-50"
             />
             <button

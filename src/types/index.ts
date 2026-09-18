@@ -46,6 +46,7 @@ export interface TicketComment {
   content: string;
   isInternal: boolean;
   createdAt: string;
+  seenAt?: string | null;
 }
 
 export type TicketActivityType =
@@ -73,6 +74,7 @@ export interface ChatMessage {
   content: string;
   sources?: { title: string; snippet: string }[];
   createdAt: string;
+  seenAt?: string | null;
 }
 
 export interface ChatSession {

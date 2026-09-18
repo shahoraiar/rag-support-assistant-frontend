@@ -4,6 +4,8 @@ import { ProtectedRoute } from './ProtectedRoute';
 import { DashboardLayout } from '../layouts/DashboardLayout';
 import { LoginPage } from '../pages/auth/LoginPage';
 import { RegisterPage } from '../pages/auth/RegisterPage';
+import { ForgotPasswordPage } from '../pages/auth/ForgotPasswordPage';
+import { ResetPasswordPage } from '../pages/auth/ResetPasswordPage';
 import { CustomerDashboard } from '../pages/customer/CustomerDashboard';
 import { CustomerTicketsPage } from '../pages/customer/CustomerTicketsPage';
 import { CustomerChatPage } from '../pages/customer/CustomerChatPage';
@@ -24,6 +26,8 @@ export function AppRouter() {
         <Routes>
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
+          <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+          <Route path="/reset-password" element={<ResetPasswordPage />} />
           <Route path="/" element={<Navigate to="/login" replace />} />
 
           {/* Customer routes */}

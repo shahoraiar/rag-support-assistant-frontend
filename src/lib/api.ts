@@ -63,6 +63,7 @@ type TicketCommentApi = {
   sender_name: string;
   content: string;
   is_internal: boolean;
+  seen_at?: string | null;
   created_at: string;
 };
 
@@ -223,6 +224,7 @@ function mapComment(comment: TicketCommentApi, ticketId: string): TicketComment 
     content: comment.content,
     isInternal: comment.is_internal,
     createdAt: comment.created_at,
+    seenAt: comment.seen_at ?? null,
   };
 }
 
@@ -269,6 +271,24 @@ export async function registerApi(payload: {
     saveTokens(data.tokens.access, data.tokens.refresh);
   }
   return data;
+}
+
+export async function requestPasswordResetApi(email: string): Promise<{ detail: string; reset_url?: string }> {
+  return apiFetch<{ detail: string; reset_url?: string }>('/api/auth/password-reset/', {
+    method: 'POST',
+    body: JSON.stringify({ email }),
+  }, false);
+}
+
+export async function confirmPasswordResetApi(payload: {
+  uid: string;
+  token: string;
+  password: string;
+}): Promise<{ detail: string }> {
+  return apiFetch<{ detail: string }>('/api/auth/password-reset/confirm/', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  }, false);
 }
 
 export async function fetchCurrentUser(): Promise<User> {
@@ -426,6 +446,7 @@ export type ChatMessageApi = {
   role: 'user' | 'assistant' | 'agent' | 'system';
   content: string;
   sources?: { title: string; snippet: string }[];
+  seen_at?: string | null;
   created_at: string;
 };
 
@@ -453,6 +474,10 @@ export type ChatMessageResponse = {
 export async function fetchChatSessions(): Promise<ChatSessionApi[]> {
   const data = await apiFetch<Paginated<ChatSessionApi>>('/api/me/chat/sessions/');
   return unwrapList(data);
+}
+
+export async function fetchChatSession(sessionId: number): Promise<ChatSessionApi> {
+  return apiFetch<ChatSessionApi>(`/api/me/chat/sessions/${sessionId}/`);
 }
 
 export async function createChatSession(): Promise<ChatSessionApi> {

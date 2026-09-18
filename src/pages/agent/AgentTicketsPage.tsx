@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { ArrowLeft, Sparkles } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import {
@@ -8,6 +8,7 @@ import {
   postTicketComment,
   resolveTicket,
 } from '../../lib/api';
+import { useTicketSocket, type TicketCommentSocketPayload } from '../../lib/useTicketSocket';
 import { TicketList } from '../../components/tickets/TicketCard';
 import { Badge } from '../../components/ui/Badge';
 import { Card } from '../../components/ui/Card';
@@ -22,6 +23,19 @@ const aiSuggestions: Record<string, string> = {
   general: 'Thank you for reaching out. Based on our documentation, here is how you can resolve this...',
 };
 
+function mapSocketComment(message: TicketCommentSocketPayload, ticketId: string): TicketComment {
+  return {
+    id: String(message.id),
+    ticketId,
+    senderId: String(message.sender_id),
+    senderName: message.sender_name,
+    content: message.content,
+    isInternal: message.is_internal,
+    createdAt: message.created_at,
+    seenAt: message.seen_at ?? null,
+  };
+}
+
 export function AgentTicketsPage() {
   const { user } = useAuth();
   const [tickets, setTickets] = useState<Ticket[]>([]);
@@ -32,6 +46,33 @@ export function AgentTicketsPage() {
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+
+  const currentUserId = user?.id ? Number(user.id) : null;
+  const typingIdleRef = useRef<number | null>(null);
+
+  const upsertComment = useCallback((message: TicketCommentSocketPayload) => {
+    if (!selected) return;
+    const mapped = mapSocketComment(message, selected.id);
+    setComments((prev) => {
+      if (prev.some((c) => c.id === mapped.id)) {
+        return prev.map((c) => (c.id === mapped.id ? { ...c, ...mapped } : c));
+      }
+      return [...prev, mapped];
+    });
+  }, [selected]);
+
+  const applySeen = useCallback((messageIds: number[], seenAt: string) => {
+    const idSet = new Set(messageIds.map(String));
+    setComments((prev) => prev.map((c) => (idSet.has(c.id) ? { ...c, seenAt } : c)));
+  }, []);
+
+  const { connected, status, peerTyping, sendMessage, sendTyping, sendSeen } = useTicketSocket({
+    ticketUid: selected?.id ?? null,
+    currentUserId,
+    onMessage: upsertComment,
+    onSeen: applySeen,
+    onError: (detail) => setError(detail),
+  });
 
   const loadTickets = useCallback(async () => {
     setLoading(true);
@@ -78,6 +119,33 @@ export function AgentTicketsPage() {
     };
   }, [selected?.id]);
 
+  useEffect(() => {
+    if (!connected) return;
+    sendSeen();
+  }, [connected, comments.length, sendSeen]);
+
+  useEffect(() => {
+    if (!selected?.id) return;
+    const id = window.setInterval(async () => {
+      try {
+        const next = await fetchTicketComments(selected.id);
+        setComments((prev) => {
+          const byId = new Map(prev.map((c) => [c.id, c]));
+          for (const c of next) {
+            const existing = byId.get(c.id);
+            byId.set(c.id, existing ? { ...existing, ...c } : c);
+          }
+          return Array.from(byId.values()).sort(
+            (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
+          );
+        });
+      } catch {
+        // ignore
+      }
+    }, 5000);
+    return () => window.clearInterval(id);
+  }, [selected?.id]);
+
   const suggestion = selected ? aiSuggestions[selected.category] : '';
   const isUnassigned = Boolean(selected && !selected.assignedAgentId);
 
@@ -104,16 +172,21 @@ export function AgentTicketsPage() {
 
   const handleSendReply = async () => {
     if (!selected || !reply.trim()) return;
+    const text = reply.trim();
     setBusy(true);
     setError('');
+    sendTyping(false);
     try {
       if (!selected.assignedAgentId) {
         const assigned = await assignTicket(selected.id);
         setSelected(assigned);
         setTickets((prev) => prev.map((t) => (t.id === assigned.id ? assigned : t)));
       }
-      const comment = await postTicketComment(selected.id, reply.trim());
-      setComments((prev) => [...prev, comment]);
+      const ok = sendMessage(text);
+      if (!ok) {
+        const comment = await postTicketComment(selected.id, text);
+        setComments((prev) => (prev.some((c) => c.id === comment.id) ? prev : [...prev, comment]));
+      }
       setReply('');
       const refreshed = await fetchTickets();
       setTickets(refreshed);
@@ -143,12 +216,26 @@ export function AgentTicketsPage() {
     }
   };
 
+  const liveLabel =
+    status === 'live' ? 'Live' : status === 'connecting' ? 'Connecting…' : status === 'error' ? 'Reconnecting…' : '';
+  const peerTypingLabel = peerTyping?.isTyping
+    ? `${peerTyping.name || 'Customer'} is typing…`
+    : null;
+
+  const handleReplyChange = (value: string) => {
+    setReply(value);
+    sendTyping(true);
+    if (typingIdleRef.current) window.clearTimeout(typingIdleRef.current);
+    typingIdleRef.current = window.setTimeout(() => sendTyping(false), 1200);
+  };
+
   return (
     <div className="space-y-4 sm:space-y-6">
       <div>
         <h1 className="text-xl font-bold text-slate-900 sm:text-2xl">Assigned Tickets</h1>
         <p className="text-sm text-slate-500 sm:text-base">
           {tickets.length} tickets in your queue (assigned + open unassigned)
+          {selected && liveLabel ? ` · ${liveLabel}` : ''}
         </p>
       </div>
 
@@ -201,6 +288,9 @@ export function AgentTicketsPage() {
               </div>
 
               <Card title="Conversation">
+                <div className="mb-2 flex justify-end">
+                  {liveLabel && <span className="text-xs font-medium text-emerald-600">{liveLabel}</span>}
+                </div>
                 <div className="mb-4 max-h-48 space-y-2 overflow-y-auto">
                   {comments.map((c) => (
                     <div key={c.id} className={`rounded-lg p-3 text-sm ${c.isInternal ? 'border border-amber-100 bg-amber-50' : 'bg-slate-50'}`}>
@@ -213,16 +303,22 @@ export function AgentTicketsPage() {
                         <span className="shrink-0">{new Date(c.createdAt).toLocaleString()}</span>
                       </div>
                       <p className="mt-1 text-slate-700">{c.content}</p>
+                      {c.senderId === user?.id && c.seenAt && (
+                        <p className="mt-1 text-right text-xs font-medium text-brand-600">Seen</p>
+                      )}
                     </div>
                   ))}
                   {comments.length === 0 && (
                     <p className="text-sm text-slate-400">No replies yet</p>
                   )}
                 </div>
+                {peerTypingLabel && (
+                  <p className="mb-2 text-xs italic text-slate-400">{peerTypingLabel}</p>
+                )}
                 <Textarea
                   label="Reply to customer"
                   value={reply}
-                  onChange={(e) => setReply(e.target.value)}
+                  onChange={(e) => handleReplyChange(e.target.value)}
                   placeholder="Type your reply..."
                 />
                 <div className="mt-3 flex flex-col gap-2 sm:flex-row">

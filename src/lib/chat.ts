@@ -8,5 +8,6 @@ export function mapChatMessage(message: ChatMessageApi): ChatMessage {
     content: message.content,
     sources: message.sources,
     createdAt: message.created_at,
+    seenAt: message.seen_at ?? null,
   };
 }
