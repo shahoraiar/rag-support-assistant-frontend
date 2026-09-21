@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Ticket, MessageSquare, Plus, Clock } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { fetchChatSessions, fetchTickets } from '../../lib/api';
@@ -10,6 +10,7 @@ import type { Ticket as TicketType } from '../../types';
 
 export function CustomerDashboard() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [tickets, setTickets] = useState<TicketType[]>([]);
   const [chatCount, setChatCount] = useState(0);
   const [error, setError] = useState('');
@@ -70,7 +71,10 @@ export function CustomerDashboard() {
           <h2 className="text-lg font-semibold text-slate-900">Recent Tickets</h2>
           <Link to="/customer/tickets" className="text-sm text-brand-600 hover:underline">View all</Link>
         </div>
-        <TicketList tickets={recentTickets} />
+        <TicketList
+          tickets={recentTickets}
+          onSelect={(t) => navigate(`/customer/tickets?ticket=${encodeURIComponent(t.id)}`)}
+        />
       </div>
     </div>
   );

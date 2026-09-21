@@ -7,6 +7,7 @@ import {
   loginApi,
   mapApiUser,
   registerApi,
+  setAgentAvailability,
 } from '../lib/api';
 import type { User, UserRole } from '../types';
 
@@ -121,6 +122,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const logout = () => {
+    const role = user?.role;
+    // Mark agent offline before dropping the token (best-effort)
+    if (role === 'agent' && hasAccessToken()) {
+      void setAgentAvailability(false).catch(() => undefined);
+    }
     setUser(null);
     localStorage.removeItem('supportai_user');
     clearTokens();

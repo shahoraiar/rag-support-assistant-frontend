@@ -1,9 +1,11 @@
 import clsx from 'clsx';
+import { Loader2 } from 'lucide-react';
 import type { ButtonHTMLAttributes } from 'react';
 
 interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: 'primary' | 'secondary' | 'ghost' | 'danger';
   size?: 'sm' | 'md' | 'lg';
+  loading?: boolean;
 }
 
 const variants = {
@@ -19,7 +21,15 @@ const sizes = {
   lg: 'px-6 py-3 text-base',
 };
 
-export function Button({ variant = 'primary', size = 'md', className, children, ...props }: ButtonProps) {
+export function Button({
+  variant = 'primary',
+  size = 'md',
+  loading = false,
+  className,
+  children,
+  disabled,
+  ...props
+}: ButtonProps) {
   return (
     <button
       className={clsx(
@@ -28,8 +38,11 @@ export function Button({ variant = 'primary', size = 'md', className, children, 
         sizes[size],
         className,
       )}
+      disabled={disabled || loading}
+      aria-busy={loading || undefined}
       {...props}
     >
+      {loading && <Loader2 className="h-4 w-4 animate-spin" aria-hidden />}
       {children}
     </button>
   );

@@ -14,6 +14,7 @@ export function LoginPage() {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
+  const [submitting, setSubmitting] = useState(false);
 
   if (loading) {
     return (
@@ -33,13 +34,19 @@ export function LoginPage() {
   };
 
   const handleLogin = async (loginEmail?: string, loginPassword = 'demo1234') => {
-    const e = loginEmail || email;
-    const loggedIn = await login(e, loginEmail ? loginPassword : password || loginPassword);
-    if (loggedIn) {
-      redirectByRole(loggedIn.role);
-      return;
+    setError('');
+    setSubmitting(true);
+    try {
+      const e = loginEmail || email;
+      const loggedIn = await login(e, loginEmail ? loginPassword : password || loginPassword);
+      if (loggedIn) {
+        redirectByRole(loggedIn.role);
+        return;
+      }
+      setError('Invalid email or password. Sign up or use a demo account below.');
+    } finally {
+      setSubmitting(false);
     }
-    setError('Invalid email or password. Sign up or use a demo account below.');
   };
 
   const handleSubmit = async (e: FormEvent) => {
@@ -114,8 +121,8 @@ export function LoginPage() {
           <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">{error}</p>
         )}
 
-        <Button type="submit" className="w-full">
-          Sign In
+        <Button type="submit" className="w-full" loading={submitting}>
+          {submitting ? 'Signing in…' : 'Sign In'}
         </Button>
       </form>
 
@@ -133,8 +140,9 @@ export function LoginPage() {
             <button
               key={acc.email}
               type="button"
+              disabled={submitting}
               onClick={() => handleLogin(acc.email)}
-              className="flex w-full flex-col gap-1 rounded-lg border border-slate-200 px-4 py-3 text-left text-sm transition hover:border-brand-300 hover:bg-brand-50 sm:flex-row sm:items-center sm:justify-between"
+              className="flex w-full flex-col gap-1 rounded-lg border border-slate-200 px-4 py-3 text-left text-sm transition hover:border-brand-300 hover:bg-brand-50 disabled:opacity-50 sm:flex-row sm:items-center sm:justify-between"
             >
               <span className="font-medium text-slate-700">{acc.label}</span>
               <span className="truncate text-xs text-slate-400">{acc.email}</span>

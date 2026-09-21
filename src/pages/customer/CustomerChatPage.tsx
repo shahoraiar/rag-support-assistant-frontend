@@ -1,28 +1,40 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Bot, Headphones } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import {
+  ArrowRight,
+  Bot,
+  Headphones,
+  RotateCcw,
+  Sparkles,
+  Ticket,
+} from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { ChatWindow } from '../../components/chat/ChatWindow';
 import {
   createChatSession,
   escalateChatSession,
-  fetchChatSession,
   fetchChatSessions,
   sendChatMessage,
   type ChatMessageApi,
   type ChatSessionApi,
 } from '../../lib/api';
 import { mapChatMessage } from '../../lib/chat';
-import { useChatSocket } from '../../lib/useChatSocket';
 import type { ChatMessage } from '../../types';
 import { Button } from '../../components/ui/Button';
 
+const AI_CHAT_SUGGESTIONS = [
+  'What is the billing grace period?',
+  'How do refunds work for duplicate payment?',
+  'Who is responsible for my Wi-Fi router?',
+  'What personal data do you collect?',
+  'How long does installation take?',
+];
+
+/** Prefer an active AI session; escalated chats are closed here (continue on My Tickets). */
 function pickCustomerSession(sessions: ChatSessionApi[]): ChatSessionApi | null {
   if (!sessions.length) return null;
-  // Prefer live escalated chat so WebSocket actually connects
-  const escalated = sessions.filter((s) => !s.is_ai_handled);
-  if (escalated.length) {
-    return escalated.sort((a, b) => b.id - a.id)[0];
-  }
+  const aiActive = sessions.filter((s) => s.is_ai_handled).sort((a, b) => b.id - a.id);
+  if (aiActive.length) return aiActive[0];
   return sessions.sort((a, b) => b.id - a.id)[0];
 }
 
@@ -35,7 +47,10 @@ export function CustomerChatPage() {
   const [error, setError] = useState('');
 
   const isEscalated = Boolean(session && !session.is_ai_handled);
-  const currentUserId = user?.id ? Number(user.id) : null;
+  const ticketUid = session?.ticket_id || null;
+  const ticketsHref = ticketUid
+    ? `/customer/tickets?ticket=${encodeURIComponent(ticketUid)}`
+    : '/customer/tickets';
 
   const upsertMessage = useCallback((apiMessage: ChatMessageApi) => {
     const mapped = mapChatMessage(apiMessage);
@@ -47,22 +62,6 @@ export function CustomerChatPage() {
     });
   }, []);
 
-  const applySeen = useCallback((messageIds: number[], seenAt: string) => {
-    const idSet = new Set(messageIds.map(String));
-    setMessages((prev) =>
-      prev.map((m) => (idSet.has(m.id) ? { ...m, seenAt } : m)),
-    );
-  }, []);
-
-  const { connected, status, peerTyping, sendMessage, sendTyping, sendSeen } = useChatSocket({
-    sessionId: session?.id ?? null,
-    enabled: isEscalated,
-    currentUserId,
-    onMessage: upsertMessage,
-    onSeen: applySeen,
-    onError: (detail) => setError(detail),
-  });
-
   useEffect(() => {
     let active = true;
     (async () => {
@@ -71,7 +70,7 @@ export function CustomerChatPage() {
       try {
         const sessions = await fetchChatSessions();
         const existing = pickCustomerSession(sessions);
-        const nextSession = existing || await createChatSession();
+        const nextSession = existing || (await createChatSession());
         if (!active) return;
         setSession(nextSession);
         setMessages(nextSession.messages.map(mapChatMessage));
@@ -81,45 +80,21 @@ export function CustomerChatPage() {
         if (active) setLoading(false);
       }
     })();
-    return () => { active = false; };
+    return () => {
+      active = false;
+    };
   }, [user?.id]);
 
-  // REST backup sync while live (covers missed WS frames)
-  useEffect(() => {
-    if (!isEscalated || !session?.id) return;
-    const id = window.setInterval(async () => {
-      try {
-        const fresh = await fetchChatSession(session.id);
-        setMessages((prev) => {
-          const byId = new Map(prev.map((m) => [m.id, m]));
-          for (const raw of fresh.messages) {
-            const mapped = mapChatMessage(raw);
-            const existing = byId.get(mapped.id);
-            byId.set(mapped.id, existing ? { ...existing, ...mapped } : mapped);
-          }
-          return Array.from(byId.values()).sort(
-            (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
-          );
-        });
-      } catch {
-        // ignore transient poll errors
-      }
-    }, 4000);
-    return () => window.clearInterval(id);
-  }, [isEscalated, session?.id]);
-
-  useEffect(() => {
-    if (!isEscalated || !connected) return;
-    sendSeen();
-  }, [isEscalated, connected, messages.length, sendSeen]);
-
-  const appendResponse = (response: Awaited<ReturnType<typeof sendChatMessage>>) => {
+  const appendResponse = (
+    response: Awaited<ReturnType<typeof sendChatMessage>>,
+    pendingId?: string,
+  ) => {
     setMessages((prev) => {
-      const next = [...prev];
+      let next = pendingId ? prev.filter((m) => m.id !== pendingId) : [...prev];
       const push = (msg?: ChatMessageApi) => {
         if (!msg) return;
         const mapped = mapChatMessage(msg);
-        if (!next.some((m) => m.id === mapped.id)) next.push(mapped);
+        if (!next.some((m) => m.id === mapped.id)) next = [...next, mapped];
       };
       push(response.user_message);
       push(response.ai_message);
@@ -127,41 +102,39 @@ export function CustomerChatPage() {
       return next;
     });
     if (response.escalated) {
-      setSession((prev) => prev ? {
-        ...prev,
-        is_ai_handled: false,
-        ticket_id: response.ticket_id || prev.ticket_id,
-        escalated_to_agent_name: response.agent_name || prev.escalated_to_agent_name,
-      } : prev);
+      setSession((prev) =>
+        prev
+          ? {
+              ...prev,
+              is_ai_handled: false,
+              ticket_id: response.ticket_id || prev.ticket_id,
+              escalated_to_agent_name: response.agent_name || prev.escalated_to_agent_name,
+            }
+          : prev,
+      );
     }
   };
 
   const handleSend = async (text: string) => {
-    if (!session) return;
+    if (!session || isEscalated) return;
+    const pendingId = `pending-${Date.now()}`;
     setError('');
-
-    if (isEscalated) {
-      sendTyping(false);
-      const ok = sendMessage(text);
-      if (!ok) {
-        setTyping(true);
-        try {
-          const response = await sendChatMessage(session.id, text);
-          appendResponse(response);
-        } catch (err) {
-          setError(err instanceof Error ? err.message : 'Failed to send message');
-        } finally {
-          setTyping(false);
-        }
-      }
-      return;
-    }
-
+    setMessages((prev) => [
+      ...prev,
+      {
+        id: pendingId,
+        role: 'user',
+        content: text,
+        createdAt: new Date().toISOString(),
+        seenAt: null,
+      },
+    ]);
     setTyping(true);
     try {
       const response = await sendChatMessage(session.id, text);
-      appendResponse(response);
+      appendResponse(response, pendingId);
     } catch (err) {
+      setMessages((prev) => prev.filter((m) => m.id !== pendingId));
       setError(err instanceof Error ? err.message : 'Failed to send message');
     } finally {
       setTyping(false);
@@ -169,14 +142,21 @@ export function CustomerChatPage() {
   };
 
   const handleEscalate = async () => {
-    if (!session) return;
+    if (!session || isEscalated) return;
     setTyping(true);
     setError('');
     try {
       const response = await escalateChatSession(session.id);
-      const fresh = await fetchChatSession(session.id);
-      setSession(fresh);
-      setMessages(fresh.messages.map(mapChatMessage));
+      setSession((prev) =>
+        prev
+          ? {
+              ...prev,
+              is_ai_handled: false,
+              ticket_id: response.ticket_id || prev.ticket_id,
+              escalated_to_agent_name: response.agent_name || prev.escalated_to_agent_name,
+            }
+          : prev,
+      );
       if (response.system_message) {
         upsertMessage(response.system_message);
       }
@@ -201,82 +181,155 @@ export function CustomerChatPage() {
     }
   };
 
-  const peerTypingLabel = peerTyping?.isTyping
-    ? `${peerTyping.name || 'Agent'} is typing…`
-    : null;
-
-  const liveLabel =
-    status === 'live' ? 'Live' : status === 'connecting' ? 'Connecting…' : status === 'error' ? 'Reconnecting…' : '';
-
   return (
-    <div className="mx-auto flex min-h-[60dvh] max-w-3xl flex-col space-y-4 lg:min-h-[calc(100dvh-10rem)]">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <div className="flex items-center gap-2">
-            {isEscalated ? (
-              <Headphones className="h-6 w-6 shrink-0 text-emerald-600" />
-            ) : (
-              <Bot className="h-6 w-6 shrink-0 text-brand-600" />
-            )}
-            <h1 className="text-xl font-bold text-slate-900 sm:text-2xl">
-              {isEscalated ? 'Live Agent Chat' : 'AI Support Chat'}
-            </h1>
+    <div className="mx-auto flex h-[calc(100dvh-7.5rem)] w-full max-w-4xl flex-col gap-4">
+      <div className="shrink-0 overflow-hidden rounded-2xl border border-slate-200/80 bg-gradient-to-br from-white via-slate-50 to-brand-50/40 p-4 shadow-sm sm:p-5">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="flex min-w-0 items-center gap-2.5">
+            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-900 text-white shadow-sm">
+              <Sparkles className="h-5 w-5" />
+            </span>
+            <div className="min-w-0">
+              <h1 className="text-xl font-bold tracking-tight text-slate-900 sm:text-2xl">
+                AI Support
+              </h1>
+              <p className="truncate text-sm text-slate-500">
+                {session?.chat_uid
+                  ? `${session.chat_uid} · Instant answers from your knowledge base`
+                  : 'Instant answers from your knowledge base'}
+              </p>
+            </div>
           </div>
-          <p className="text-sm text-slate-500 sm:text-base">
-            {isEscalated
-              ? `Connected with ${session?.escalated_to_agent_name || 'support'}. Ticket ${session?.ticket_id || ''}${liveLabel ? ` · ${liveLabel}` : ''}`
-              : 'Ask questions — AI answers from knowledge base, or connect to a human agent'}
-          </p>
-        </div>
-        <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
-          {isEscalated && (
-            <Button variant="secondary" className="w-full sm:w-auto" onClick={handleNewAiChat} disabled={loading}>
-              New AI chat
-            </Button>
-          )}
-          {!isEscalated && (
-            <Button variant="secondary" className="w-full sm:w-auto" onClick={handleEscalate} disabled={typing || loading}>
-              Talk to human
-            </Button>
-          )}
+          <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
+            {!isEscalated && (
+              <>
+                <Button
+                  variant="secondary"
+                  className="w-full gap-1.5 sm:w-auto"
+                  onClick={handleNewAiChat}
+                  disabled={typing || loading || !session}
+                >
+                  <RotateCcw className="h-4 w-4" />
+                  End support
+                </Button>
+                <Button
+                  variant="secondary"
+                  className="w-full gap-1.5 sm:w-auto"
+                  onClick={handleEscalate}
+                  disabled={typing || loading || !session}
+                >
+                  <Headphones className="h-4 w-4" />
+                  Talk to human
+                </Button>
+              </>
+            )}
+          </div>
         </div>
       </div>
 
-      {error && <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">{error}</p>}
+      {error && (
+        <p className="shrink-0 rounded-xl bg-red-50 px-3 py-2 text-sm text-red-600">{error}</p>
+      )}
+
+      {isEscalated && !loading && (
+        <div className="shrink-0 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 sm:px-5">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-amber-950">
+                AI chat closed — continue on My Tickets
+              </p>
+              <p className="mt-0.5 text-xs text-amber-800/90">
+                {ticketUid
+                  ? `Ticket ${ticketUid} was created${
+                      session?.escalated_to_agent_name
+                        ? ` and assigned to ${session.escalated_to_agent_name}`
+                        : ''
+                    }. Open My Tickets to view the conversation and reply.`
+                  : 'A support ticket was created. Open My Tickets to continue with an agent.'}
+              </p>
+            </div>
+            <div className="flex shrink-0 flex-wrap items-center gap-2">
+              <Link to={ticketsHref}>
+                <Button size="sm" className="gap-1.5">
+                  <Ticket className="h-3.5 w-3.5" />
+                  Open My Tickets
+                  <ArrowRight className="h-3.5 w-3.5" />
+                </Button>
+              </Link>
+              <Button variant="secondary" size="sm" onClick={handleNewAiChat} disabled={loading}>
+                New AI chat
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="min-h-0 flex-1">
         {loading ? (
-          <div className="flex h-64 items-center justify-center rounded-xl border border-dashed border-slate-200 text-sm text-slate-400">
-            Loading chat...
+          <div className="flex h-full items-center justify-center rounded-2xl border border-dashed border-slate-200 bg-white text-sm text-slate-400 shadow-sm">
+            Loading chat…
           </div>
         ) : (
           <ChatWindow
             messages={messages}
-            onSend={handleSend}
+            onSend={isEscalated ? undefined : handleSend}
             viewerRole="customer"
-            peerTypingLabel={peerTypingLabel}
-            onTypingChange={isEscalated ? sendTyping : undefined}
-            placeholder={
+            sendingHint={typing && !isEscalated ? 'AI is searching knowledge base…' : null}
+            title={isEscalated ? 'AI chat ended' : 'Conversation'}
+            subtitle={
               isEscalated
-                ? 'Message the agent...'
-                : 'Ask about refunds, billing, account...'
+                ? [
+                    session?.chat_uid,
+                    ticketUid ? `Moved to ${ticketUid}` : null,
+                    'Replies are closed here',
+                  ]
+                    .filter(Boolean)
+                    .join(' · ')
+                : 'Ask about billing, refunds, account, or request a human'
             }
-            disabled={typing}
+            headerBadge={
+              isEscalated ? (
+                <span className="inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-800">
+                  <Headphones className="h-3 w-3" />
+                  Handed to human
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[11px] font-medium text-slate-600">
+                  <Bot className="h-3 w-3" />
+                  AI assistant
+                </span>
+              )
+            }
+            headerActions={
+              isEscalated ? (
+                <Link to={ticketsHref}>
+                  <Button size="sm" className="gap-1.5">
+                    <Ticket className="h-3.5 w-3.5" />
+                    My Tickets
+                  </Button>
+                </Link>
+              ) : undefined
+            }
+            systemMessageAction={
+              isEscalated ? (
+                <Link
+                  to={ticketsHref}
+                  className="inline-flex items-center gap-1.5 rounded-full bg-brand-600 px-3.5 py-1.5 text-xs font-semibold text-white shadow-sm transition hover:bg-brand-700"
+                >
+                  <Ticket className="h-3.5 w-3.5" />
+                  {ticketUid ? `Open ${ticketUid} in My Tickets` : 'Open My Tickets'}
+                  <ArrowRight className="h-3.5 w-3.5" />
+                </Link>
+              ) : undefined
+            }
+            placeholder="Ask about refunds, billing, account…"
+            disabled={typing || isEscalated}
+            emptyTitle="How can we help?"
+            emptyHint="Pick a suggested question below, or type your own."
+            suggestions={isEscalated ? [] : AI_CHAT_SUGGESTIONS}
           />
         )}
       </div>
-
-      {typing && !isEscalated && (
-        <p className="text-center text-sm text-slate-400">
-          AI is searching knowledge base...
-        </p>
-      )}
-
-      {!isEscalated && (
-        <div className="rounded-lg border border-brand-100 bg-brand-50 px-3 py-3 text-xs text-brand-700 sm:px-4 sm:text-sm">
-          Try: &quot;What is your refund policy?&quot; or say &quot;I want to talk to a human agent&quot; to escalate.
-        </div>
-      )}
     </div>
   );
 }

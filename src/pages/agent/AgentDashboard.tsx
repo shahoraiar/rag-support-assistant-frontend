@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Ticket, Clock, AlertTriangle, CheckCircle } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { fetchAgentWorkload, fetchTickets } from '../../lib/api';
@@ -8,6 +9,7 @@ import type { AgentWorkload, Ticket as TicketType } from '../../types';
 
 export function AgentDashboard() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [tickets, setTickets] = useState<TicketType[]>([]);
   const [workload, setWorkload] = useState<AgentWorkload | undefined>();
   const [error, setError] = useState('');
@@ -60,7 +62,12 @@ export function AgentDashboard() {
 
       <div>
         <h2 className="mb-4 text-lg font-semibold text-slate-900">Your Active Tickets</h2>
-        <TicketList tickets={open} showCustomer />
+        <TicketList
+          tickets={open}
+          showCustomer
+          highlightUnassigned
+          onSelect={(t) => navigate(`/agent/tickets?ticket=${encodeURIComponent(t.id)}`)}
+        />
       </div>
     </div>
   );

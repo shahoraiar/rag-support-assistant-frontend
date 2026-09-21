@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Headphones, MessageSquare } from 'lucide-react';
 import clsx from 'clsx';
 import { ChatWindow } from '../../components/chat/ChatWindow';
 import { Button } from '../../components/ui/Button';
@@ -61,7 +61,7 @@ export function AgentChatPage() {
     );
   }, []);
 
-  const { connected, status, peerTyping, sendMessage, sendTyping, sendSeen } = useChatSocket({
+  const { connected, peerTyping, sendMessage, sendTyping, sendSeen } = useChatSocket({
     sessionId: activeId,
     enabled: Boolean(activeId),
     currentUserId,
@@ -113,14 +113,13 @@ export function AgentChatPage() {
 
   useEffect(() => {
     loadSessions();
-  }, [loadSessions]);
-
-  // Keep discovering new escalations + sync messages
-  useEffect(() => {
-    const id = window.setInterval(() => {
-      loadSessions(activeIdRef.current, true);
-    }, 4000);
-    return () => window.clearInterval(id);
+    const onVis = () => {
+      if (document.visibilityState === 'visible') {
+        loadSessions(activeIdRef.current, true);
+      }
+    };
+    document.addEventListener('visibilitychange', onVis);
+    return () => document.removeEventListener('visibilitychange', onVis);
   }, [loadSessions]);
 
   useEffect(() => {
@@ -128,9 +127,9 @@ export function AgentChatPage() {
     sendSeen();
   }, [activeId, connected, messages.length, sendSeen]);
 
-  // Extra per-session sync while open
+  // REST backup only when live WS is down
   useEffect(() => {
-    if (!activeId) return;
+    if (!activeId || connected) return;
     const id = window.setInterval(async () => {
       try {
         const fresh = await fetchChatSession(activeId);
@@ -148,9 +147,9 @@ export function AgentChatPage() {
       } catch {
         // ignore
       }
-    }, 4000);
+    }, 15000);
     return () => window.clearInterval(id);
-  }, [activeId]);
+  }, [activeId, connected]);
 
   const handleSelect = (id: number) => {
     setActiveId(id);
@@ -184,72 +183,131 @@ export function AgentChatPage() {
   const peerTypingLabel = peerTyping?.isTyping
     ? `${peerTyping.name || 'Customer'} is typing…`
     : null;
-  const liveLabel =
-    status === 'live' ? 'Live' : status === 'connecting' ? 'Connecting…' : status === 'error' ? 'Reconnecting…' : '';
 
   return (
-    <div className="flex min-h-0 flex-col space-y-4 sm:space-y-6">
-      <div>
-        <h1 className="text-xl font-bold text-slate-900 sm:text-2xl">Live Chat</h1>
-        <p className="text-sm text-slate-500 sm:text-base">
-          Escalated conversations from AI
-          {activeId && liveLabel ? ` · ${liveLabel}` : ''}
-        </p>
+    <div className="flex h-[calc(100dvh-7.5rem)] flex-col gap-3">
+      <div className="flex shrink-0 items-end justify-between gap-3">
+        <div>
+          <h1 className="text-xl font-bold text-slate-900 sm:text-2xl">Live Chat</h1>
+          <p className="text-sm text-slate-500">
+            {sessions.length} escalated conversation{sessions.length === 1 ? '' : 's'}
+          </p>
+        </div>
       </div>
 
-      {error && <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">{error}</p>}
+      {error && (
+        <p className="shrink-0 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">{error}</p>
+      )}
 
-      <div className="flex min-h-[60dvh] flex-col gap-4 lg:grid lg:min-h-[calc(100dvh-12rem)] lg:grid-cols-4">
-        <div className={`space-y-2 overflow-y-auto lg:col-span-1 ${mobileShowChat ? 'hidden lg:block' : ''}`}>
+      <div className="grid min-h-0 flex-1 gap-4 lg:grid-cols-5 lg:gap-5">
+        <div
+          className={`min-h-0 space-y-2 overflow-y-auto lg:col-span-2 ${mobileShowChat ? 'hidden lg:block' : ''}`}
+        >
           {loading ? (
-            <p className="text-sm text-slate-400">Loading...</p>
-          ) : sessions.map((s) => (
-            <button
-              key={s.id}
-              type="button"
-              onClick={() => handleSelect(s.id)}
-              className={clsx(
-                'w-full rounded-lg border p-3 text-left text-sm transition',
-                activeId === s.id ? 'border-brand-300 bg-brand-50' : 'border-slate-200 bg-white hover:bg-slate-50',
-              )}
-            >
-              <p className="font-medium text-slate-900">{s.customer_name}</p>
-              <p className="mt-0.5 truncate text-xs text-slate-500">
-                {s.messages[s.messages.length - 1]?.content}
-              </p>
-              {s.ticket_id && <span className="mt-1 inline-block text-xs text-brand-600">{s.ticket_id}</span>}
-            </button>
-          ))}
+            <p className="text-sm text-slate-400">Loading…</p>
+          ) : (
+            sessions.map((s) => {
+              const last = s.messages[s.messages.length - 1];
+              const selected = activeId === s.id;
+              return (
+                <button
+                  key={s.id}
+                  type="button"
+                  onClick={() => handleSelect(s.id)}
+                  className={clsx(
+                    'relative w-full rounded-xl border p-3.5 text-left transition',
+                    selected
+                      ? 'border-brand-500 bg-brand-50/50 shadow-md ring-2 ring-brand-500/25'
+                      : 'border-slate-200 bg-white hover:border-brand-300 hover:shadow-sm',
+                  )}
+                >
+                  {selected && (
+                    <span className="absolute inset-y-3 left-0 w-1 rounded-full bg-brand-600" />
+                  )}
+                  <div className={clsx(selected && 'pl-2')}>
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="truncate font-medium text-slate-900">{s.customer_name}</p>
+                      {selected && (
+                        <span className="rounded-full bg-brand-600 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-white">
+                          Viewing
+                        </span>
+                      )}
+                    </div>
+                    <p className="mt-1 line-clamp-2 text-xs text-slate-500">
+                      {last?.content || 'No messages yet'}
+                    </p>
+                    <div className="mt-2 flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-400">
+                      <span className="inline-flex flex-wrap items-center gap-2">
+                        <span className="font-semibold text-slate-600">{s.chat_uid || `Chat #${s.id}`}</span>
+                        {s.ticket_id && (
+                          <span className="inline-flex items-center gap-1 font-medium text-brand-600">
+                            <MessageSquare className="h-3 w-3" />
+                            {s.ticket_id}
+                          </span>
+                        )}
+                      </span>
+                      {last?.created_at && (
+                        <span>
+                          {new Date(last.created_at).toLocaleTimeString([], {
+                            hour: '2-digit',
+                            minute: '2-digit',
+                          })}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </button>
+              );
+            })
+          )}
           {!loading && !sessions.length && (
-            <p className="text-sm text-slate-400">No escalated chats yet. Waiting for customers…</p>
+            <div className="rounded-xl border border-dashed border-slate-200 px-4 py-10 text-center text-sm text-slate-400">
+              No escalated chats yet
+            </div>
           )}
         </div>
 
-        <div className={`flex min-h-[50dvh] flex-col lg:col-span-3 ${!mobileShowChat ? 'hidden lg:flex' : 'flex'}`}>
+        <div
+          className={`min-h-0 lg:col-span-3 ${!mobileShowChat ? 'hidden lg:flex' : 'flex'} flex-col`}
+        >
           {activeSession ? (
-            <>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="mb-2 self-start lg:hidden"
-                onClick={() => setMobileShowChat(false)}
-              >
-                <ArrowLeft className="h-4 w-4" />
-                Back to chats
-              </Button>
-              <ChatWindow
-                messages={messages}
-                onSend={handleSend}
-                viewerRole="agent"
-                peerTypingLabel={peerTypingLabel}
-                onTypingChange={sendTyping}
-                placeholder="Reply as agent..."
-                disabled={sending}
-              />
-            </>
+            <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+              <div className="shrink-0 pb-2 lg:hidden">
+                <Button variant="ghost" size="sm" onClick={() => setMobileShowChat(false)}>
+                  <ArrowLeft className="h-4 w-4" />
+                  Back to chats
+                </Button>
+              </div>
+              <div className="min-h-0 flex-1">
+                <ChatWindow
+                  messages={messages}
+                  onSend={handleSend}
+                  viewerRole="agent"
+                  peerTypingLabel={peerTypingLabel}
+                  onTypingChange={sendTyping}
+                  title={activeSession.customer_name}
+                  subtitle={[
+                    activeSession.chat_uid || `Chat #${activeSession.id}`,
+                    activeSession.ticket_id ? `Ticket ${activeSession.ticket_id}` : null,
+                  ]
+                    .filter(Boolean)
+                    .join(' · ')}
+                  headerBadge={
+                    <span className="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[11px] font-medium text-emerald-700">
+                      <Headphones className="h-3 w-3" />
+                      Agent chat
+                    </span>
+                  }
+                  placeholder="Reply as agent…"
+                  disabled={sending}
+                  emptyTitle="No messages yet"
+                  emptyHint="Send the first reply to the customer."
+                />
+              </div>
+            </div>
           ) : (
-            <div className="flex flex-1 items-center justify-center rounded-xl border border-dashed border-slate-200 text-sm text-slate-400">
-              No escalated chats
+            <div className="flex h-full items-center justify-center rounded-2xl border border-dashed border-slate-200 text-sm text-slate-400">
+              {loading ? 'Loading…' : 'Select a chat to reply'}
             </div>
           )}
         </div>

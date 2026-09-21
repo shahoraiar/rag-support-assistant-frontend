@@ -1,32 +1,71 @@
-import { useRef } from 'react';
-import { Bot, Clock, Headphones, CheckCircle, MessageSquare, UserPlus, Sparkles } from 'lucide-react';
+import { useEffect, useRef, type ReactNode } from 'react';
+import {
+  Bot,
+  Clock,
+  Headphones,
+  CheckCircle,
+  MessageSquare,
+  UserPlus,
+  Sparkles,
+} from 'lucide-react';
 import clsx from 'clsx';
 import type { Ticket, TicketActivity, TicketComment } from '../../types';
+import { Badge } from '../ui/Badge';
 
 interface TicketTimelineProps {
   activities: TicketActivity[];
+  compact?: boolean;
 }
 
 const activityConfig = {
-  created: { icon: MessageSquare, color: 'bg-blue-100 text-blue-600', dot: 'bg-blue-500' },
-  ai_classified: { icon: Sparkles, color: 'bg-purple-100 text-purple-600', dot: 'bg-purple-500' },
-  agent_assigned: { icon: UserPlus, color: 'bg-emerald-100 text-emerald-600', dot: 'bg-emerald-500' },
-  agent_replied: { icon: Headphones, color: 'bg-brand-100 text-brand-600', dot: 'bg-brand-500' },
-  customer_replied: { icon: MessageSquare, color: 'bg-slate-100 text-slate-600', dot: 'bg-slate-400' },
-  resolved: { icon: CheckCircle, color: 'bg-emerald-100 text-emerald-600', dot: 'bg-emerald-500' },
-  chat_started: { icon: Bot, color: 'bg-purple-100 text-purple-600', dot: 'bg-purple-500' },
-  chat_escalated: { icon: Headphones, color: 'bg-amber-100 text-amber-600', dot: 'bg-amber-500' },
+  created: { icon: MessageSquare, color: 'bg-blue-100 text-blue-600', label: 'Submitted' },
+  ai_classified: { icon: Sparkles, color: 'bg-purple-100 text-purple-600', label: 'Classified' },
+  agent_assigned: { icon: UserPlus, color: 'bg-emerald-100 text-emerald-600', label: 'Accepted' },
+  agent_replied: { icon: Headphones, color: 'bg-brand-100 text-brand-600', label: 'Agent reply' },
+  customer_replied: { icon: MessageSquare, color: 'bg-slate-100 text-slate-600', label: 'Your reply' },
+  resolved: { icon: CheckCircle, color: 'bg-emerald-100 text-emerald-600', label: 'Resolved' },
+  chat_started: { icon: Bot, color: 'bg-purple-100 text-purple-600', label: 'Chat started' },
+  chat_escalated: { icon: Headphones, color: 'bg-amber-100 text-amber-600', label: 'Escalated' },
 };
 
-export function TicketTimeline({ activities }: TicketTimelineProps) {
-  if (activities.length === 0) return null;
+const MILESTONE_TYPES = new Set(['created', 'agent_assigned', 'resolved', 'chat_escalated']);
+
+export function TicketTimeline({ activities, compact = false }: TicketTimelineProps) {
+  const milestones = activities.filter((a) => MILESTONE_TYPES.has(a.type));
+  if (milestones.length === 0) return null;
+
+  if (compact) {
+    return (
+      <div className="flex flex-wrap items-center gap-1.5">
+        {milestones.map((activity, index) => {
+          const config = activityConfig[activity.type] || activityConfig.created;
+          const Icon = config.icon;
+          return (
+            <div key={activity.id} className="flex items-center gap-1.5">
+              {index > 0 && <span className="h-px w-3 bg-slate-200" aria-hidden />}
+              <span
+                className={clsx(
+                  'inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium',
+                  config.color,
+                )}
+                title={`${activity.message} · ${new Date(activity.createdAt).toLocaleString()}`}
+              >
+                <Icon className="h-3 w-3" />
+                {config.label}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-0">
-      {activities.map((activity, index) => {
+      {milestones.map((activity, index) => {
         const config = activityConfig[activity.type] || activityConfig.created;
         const Icon = config.icon;
-        const isLast = index === activities.length - 1;
+        const isLast = index === milestones.length - 1;
 
         return (
           <div key={activity.id} className="flex gap-3">
@@ -34,7 +73,7 @@ export function TicketTimeline({ activities }: TicketTimelineProps) {
               <div className={clsx('flex h-8 w-8 items-center justify-center rounded-full', config.color)}>
                 <Icon className="h-4 w-4" />
               </div>
-              {!isLast && <div className="w-0.5 flex-1 bg-slate-200 my-1" />}
+              {!isLast && <div className="my-1 w-0.5 flex-1 bg-slate-200" />}
             </div>
             <div className={clsx('pb-5', isLast && 'pb-0')}>
               <p className="text-sm font-medium text-slate-800">{activity.message}</p>
@@ -54,75 +93,41 @@ interface TicketStatusBannerProps {
   hasReplies: boolean;
 }
 
+/** Compact status chip for conversation header — not a full-width card. */
 export function TicketStatusBanner({ ticket, hasReplies }: TicketStatusBannerProps) {
-  // Waiting — no agent yet
-  if (ticket.status === 'open' && !ticket.assignedAgentName) {
-    return (
-      <div className="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4">
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-amber-100">
-          <Clock className="h-5 w-5 animate-pulse text-amber-600" />
-        </div>
-        <div>
-          <p className="font-medium text-amber-900">Waiting for support agent</p>
-          <p className="mt-1 text-sm text-amber-700">
-            Your ticket is in the queue. AI has classified it — an agent will pick it up soon.
-            You will see an update here when someone starts handling your ticket.
-          </p>
-          <p className="mt-2 text-xs text-amber-600">
-            Expected response by: {new Date(ticket.slaDueAt).toLocaleString()}
-          </p>
-        </div>
-      </div>
-    );
-  }
-
-  // Agent assigned but no reply yet
-  if (ticket.assignedAgentName && !hasReplies && ticket.status !== 'resolved' && ticket.status !== 'closed') {
-    return (
-      <div className="flex items-start gap-3 rounded-xl border border-emerald-200 bg-emerald-50 p-4">
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-emerald-100">
-          <Headphones className="h-5 w-5 text-emerald-600" />
-        </div>
-        <div>
-          <p className="font-medium text-emerald-900">
-            {ticket.assignedAgentName} is handling your ticket
-          </p>
-          <p className="mt-1 text-sm text-emerald-700">
-            Session started — your agent has been assigned and will reply shortly.
-            Stay on this page or check back; you will see the reply below.
-          </p>
-        </div>
-      </div>
-    );
-  }
-
-  // Agent replied — active conversation
-  if (hasReplies && ticket.status === 'in_progress') {
-    return (
-      <div className="flex items-start gap-3 rounded-xl border border-brand-200 bg-brand-50 p-4">
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand-100">
-          <MessageSquare className="h-5 w-5 text-brand-600" />
-        </div>
-        <div>
-          <p className="font-medium text-brand-900">Conversation in progress</p>
-          <p className="mt-1 text-sm text-brand-700">
-            {ticket.assignedAgentName} has replied. You can continue the conversation below.
-          </p>
-        </div>
-      </div>
-    );
-  }
-
-  // Resolved
   if (ticket.status === 'resolved' || ticket.status === 'closed') {
     return (
-      <div className="flex items-start gap-3 rounded-xl border border-emerald-200 bg-emerald-50 p-4">
-        <CheckCircle className="h-5 w-5 shrink-0 text-emerald-600 mt-0.5" />
-        <div>
-          <p className="font-medium text-emerald-900">This ticket is {ticket.status}</p>
-          <p className="mt-1 text-sm text-emerald-700">No further action needed unless you have a follow-up.</p>
-        </div>
-      </div>
+      <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700">
+        <CheckCircle className="h-3.5 w-3.5" />
+        {ticket.status === 'resolved' ? 'Resolved' : 'Closed'}
+      </span>
+    );
+  }
+
+  if (ticket.status === 'open' && !ticket.assignedAgentName) {
+    return (
+      <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-xs font-medium text-amber-800">
+        <Clock className="h-3.5 w-3.5 animate-pulse" />
+        Waiting for agent
+      </span>
+    );
+  }
+
+  if (ticket.assignedAgentName && !hasReplies) {
+    return (
+      <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-800">
+        <Headphones className="h-3.5 w-3.5" />
+        {ticket.assignedAgentName} assigned
+      </span>
+    );
+  }
+
+  if (hasReplies && ticket.status === 'in_progress') {
+    return (
+      <span className="inline-flex items-center gap-1.5 rounded-full border border-brand-200 bg-brand-50 px-2.5 py-1 text-xs font-medium text-brand-700">
+        <MessageSquare className="h-3.5 w-3.5" />
+        With {ticket.assignedAgentName || 'agent'}
+      </span>
     );
   }
 
@@ -140,6 +145,13 @@ interface TicketConversationProps {
   peerTypingLabel?: string | null;
   liveStatus?: string | null;
   onTypingChange?: (isTyping: boolean) => void;
+  activities?: TicketActivity[];
+  statusSlot?: ReactNode;
+  counterpartLabel?: string;
+  subtitle?: string;
+  emptyHint?: string;
+  beforeComposer?: ReactNode;
+  composerActions?: ReactNode;
 }
 
 export function TicketConversation({
@@ -153,9 +165,21 @@ export function TicketConversation({
   peerTypingLabel,
   liveStatus,
   onTypingChange,
+  activities = [],
+  statusSlot,
+  counterpartLabel = 'Agent',
+  subtitle,
+  emptyHint = 'You will be notified when an agent responds',
+  beforeComposer,
+  composerActions,
 }: TicketConversationProps) {
-  const canReply = ticket.status === 'open' || ticket.status === 'in_progress';
+  const showComposer = Boolean(onSendReply && onReplyTextChange);
   const typingIdleRef = useRef<number | null>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [comments.length, peerTypingLabel]);
 
   const handleTextChange = (value: string) => {
     onReplyTextChange?.(value);
@@ -166,40 +190,85 @@ export function TicketConversation({
   };
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between gap-2">
-        <h4 className="font-medium text-slate-900">Conversation</h4>
-        {liveStatus && (
-          <span className="text-xs font-medium text-emerald-600">{liveStatus}</span>
+    <div className="flex h-full min-h-0 flex-col">
+      <div className="shrink-0 border-b border-slate-100 px-4 py-3 sm:px-5">
+        <div className="flex flex-wrap items-start justify-between gap-2">
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2">
+              <h3 className="truncate text-base font-semibold text-slate-900">{ticket.subject}</h3>
+              <span className="font-mono text-xs text-slate-400">{ticket.id}</span>
+            </div>
+            {subtitle && <p className="mt-0.5 text-xs text-slate-500">{subtitle}</p>}
+            <div className="mt-2 flex flex-wrap items-center gap-1.5">
+              <Badge label={ticket.status.replace('_', ' ')} variant="status" value={ticket.status} />
+              <Badge label={ticket.priority} variant="priority" value={ticket.priority} />
+              <Badge label={ticket.category} />
+              {statusSlot}
+            </div>
+          </div>
+          {liveStatus && (
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2 py-1 text-xs font-semibold text-emerald-700">
+              <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-500" />
+              {liveStatus}
+            </span>
+          )}
+        </div>
+        {activities.length > 0 && (
+          <div className="mt-3 border-t border-slate-50 pt-2.5">
+            <TicketTimeline activities={activities} compact />
+          </div>
+        )}
+        {ticket.description && (
+          <p className="mt-2 line-clamp-2 text-xs text-slate-500">{ticket.description}</p>
         )}
       </div>
 
-      {comments.length === 0 ? (
-        <div className="rounded-lg border border-dashed border-slate-200 py-8 text-center">
-          <Clock className="mx-auto h-8 w-8 text-slate-300" />
-          <p className="mt-2 text-sm font-medium text-slate-500">No replies yet</p>
-          <p className="text-xs text-slate-400">You will be notified when an agent responds</p>
-        </div>
-      ) : (
-        <div className="space-y-3">
-          {comments.map((c) => {
+      <div className="min-h-0 flex-1 space-y-3 overflow-y-auto px-4 py-4 sm:px-5">
+        {comments.length === 0 ? (
+          <div className="flex h-full min-h-40 flex-col items-center justify-center rounded-lg border border-dashed border-slate-200 text-center">
+            <Clock className="h-8 w-8 text-slate-300" />
+            <p className="mt-2 text-sm font-medium text-slate-500">No replies yet</p>
+            <p className="text-xs text-slate-400">{emptyHint}</p>
+          </div>
+        ) : (
+          comments.map((c) => {
             const isOwn = currentUserId != null && c.senderId === currentUserId;
             return (
-              <div key={c.id} className="rounded-lg border border-slate-100 bg-slate-50 p-4">
+              <div
+                key={c.id}
+                className={clsx(
+                  'rounded-xl border p-3.5',
+                  isOwn ? 'ml-4 border-brand-100 bg-brand-50/50' : 'mr-4 border-slate-100 bg-slate-50',
+                )}
+              >
                 <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                   <div className="flex min-w-0 flex-wrap items-center gap-2">
-                    <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-brand-100 text-xs font-bold text-brand-700">
+                    <div
+                      className={clsx(
+                        'flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold',
+                        isOwn ? 'bg-brand-600 text-white' : 'bg-slate-200 text-slate-700',
+                      )}
+                    >
                       {c.senderName.charAt(0)}
                     </div>
                     <span className="text-sm font-medium text-slate-800">{c.senderName}</span>
-                    <span className="rounded bg-brand-50 px-1.5 py-0.5 text-xs text-brand-600">
-                      {isOwn ? 'You' : 'Participant'}
+                    <span
+                      className={clsx(
+                        'rounded px-1.5 py-0.5 text-xs',
+                        isOwn ? 'bg-brand-100 text-brand-700' : 'bg-white text-slate-500',
+                      )}
+                    >
+                      {isOwn ? 'You' : counterpartLabel}
                     </span>
                     {c.isInternal && (
-                      <span className="rounded bg-amber-50 px-1.5 py-0.5 text-xs text-amber-700">Internal</span>
+                      <span className="rounded bg-amber-50 px-1.5 py-0.5 text-xs text-amber-700">
+                        Internal
+                      </span>
                     )}
                   </div>
-                  <span className="shrink-0 text-xs text-slate-400">{new Date(c.createdAt).toLocaleString()}</span>
+                  <span className="shrink-0 text-xs text-slate-400">
+                    {new Date(c.createdAt).toLocaleString()}
+                  </span>
                 </div>
                 <p className="mt-2 text-sm leading-relaxed text-slate-700">{c.content}</p>
                 {isOwn && c.seenAt && (
@@ -207,39 +276,45 @@ export function TicketConversation({
                 )}
               </div>
             );
-          })}
-        </div>
-      )}
+          })
+        )}
+        {peerTypingLabel && <p className="text-xs italic text-slate-400">{peerTypingLabel}</p>}
+        <div ref={messagesEndRef} />
+      </div>
 
-      {peerTypingLabel && (
-        <p className="text-xs italic text-slate-400">{peerTypingLabel}</p>
-      )}
-
-      {canReply && onSendReply && (
-        <div className="rounded-lg border border-slate-200 bg-white p-3">
-          <textarea
-            value={replyText}
-            onChange={(e) => handleTextChange(e.target.value)}
-            onBlur={() => onTypingChange?.(false)}
-            placeholder="Write a follow-up message..."
-            className="w-full resize-none rounded-lg border-0 bg-transparent text-sm outline-none placeholder:text-slate-400"
-            rows={2}
-          />
-          <div className="mt-2 flex justify-end">
-            <button
-              type="button"
-              disabled={sending || !replyText.trim()}
-              onClick={() => {
-                onTypingChange?.(false);
-                onSendReply();
-              }}
-              className="rounded-lg bg-brand-600 px-4 py-1.5 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-50"
-            >
-              {sending ? 'Sending…' : 'Send Reply'}
-            </button>
+      <div className="shrink-0 border-t border-slate-100 bg-white px-4 py-3 sm:px-5">
+        {beforeComposer}
+        {showComposer ? (
+          <div className="rounded-xl border border-slate-200 bg-slate-50/80 p-3 focus-within:border-brand-300 focus-within:bg-white focus-within:ring-2 focus-within:ring-brand-100">
+            <textarea
+              value={replyText}
+              onChange={(e) => handleTextChange(e.target.value)}
+              onBlur={() => onTypingChange?.(false)}
+              placeholder="Write a follow-up message..."
+              className="w-full resize-none rounded-lg border-0 bg-transparent text-sm outline-none placeholder:text-slate-400"
+              rows={2}
+            />
+            <div className="mt-2 flex flex-wrap items-center justify-end gap-2">
+              {composerActions}
+              <button
+                type="button"
+                disabled={sending || !replyText.trim()}
+                onClick={() => {
+                  onTypingChange?.(false);
+                  onSendReply?.();
+                }}
+                className="rounded-lg bg-brand-600 px-4 py-1.5 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-50"
+              >
+                {sending ? 'Sending…' : 'Send Reply'}
+              </button>
+            </div>
           </div>
-        </div>
-      )}
+        ) : ticket.status === 'resolved' || ticket.status === 'closed' ? (
+          <p className="rounded-lg border border-slate-100 bg-slate-50 px-3 py-2 text-center text-xs text-slate-500">
+            This ticket is {ticket.status}. Replies are closed.
+          </p>
+        ) : null}
+      </div>
     </div>
   );
 }

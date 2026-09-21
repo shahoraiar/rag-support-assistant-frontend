@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { mapTicket, type TicketApi } from './api';
+import type { Ticket } from '../types';
 
 export type TicketCommentSocketPayload = {
   id: number;
@@ -21,6 +23,7 @@ type TicketSocketEvent =
       type: 'ticket.seen';
       payload: { message_ids: number[]; seen_at: string; reader_id: number; reader_role: string };
     }
+  | { type: 'ticket.updated'; payload: { ticket: TicketApi } }
   | { type: 'ticket.error'; payload: { detail: string } };
 
 export type TicketPeerTyping = {
@@ -48,23 +51,34 @@ export function useTicketSocket(options: {
   currentUserId?: number | null;
   onMessage: (message: TicketCommentSocketPayload) => void;
   onSeen: (messageIds: number[], seenAt: string) => void;
+  onTicketUpdated?: (ticket: Ticket) => void;
   onError?: (detail: string) => void;
 }) {
-  const { ticketUid, enabled = true, currentUserId, onMessage, onSeen, onError } = options;
+  const {
+    ticketUid,
+    enabled = true,
+    currentUserId,
+    onMessage,
+    onSeen,
+    onTicketUpdated,
+    onError,
+  } = options;
   const [status, setStatus] = useState<TicketSocketStatus>('off');
   const [peerTyping, setPeerTyping] = useState<TicketPeerTyping>(null);
   const socketRef = useRef<WebSocket | null>(null);
   const onMessageRef = useRef(onMessage);
   const onSeenRef = useRef(onSeen);
+  const onTicketUpdatedRef = useRef(onTicketUpdated);
   const onErrorRef = useRef(onError);
   const currentUserIdRef = useRef(currentUserId);
 
   useEffect(() => {
     onMessageRef.current = onMessage;
     onSeenRef.current = onSeen;
+    onTicketUpdatedRef.current = onTicketUpdated;
     onErrorRef.current = onError;
     currentUserIdRef.current = currentUserId;
-  }, [onMessage, onSeen, onError, currentUserId]);
+  }, [onMessage, onSeen, onTicketUpdated, onError, currentUserId]);
 
   useEffect(() => {
     if (!enabled || !ticketUid) {
@@ -132,6 +146,8 @@ export function useTicketSocket(options: {
           );
         } else if (data.type === 'ticket.seen') {
           onSeenRef.current(data.payload.message_ids, data.payload.seen_at);
+        } else if (data.type === 'ticket.updated') {
+          onTicketUpdatedRef.current?.(mapTicket(data.payload.ticket));
         } else if (data.type === 'ticket.error') {
           onErrorRef.current?.(data.payload.detail);
         }

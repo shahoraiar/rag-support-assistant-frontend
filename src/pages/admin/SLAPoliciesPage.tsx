@@ -70,19 +70,23 @@ export function SLAPoliciesPage() {
         <div>
           <h1 className="text-xl font-bold text-slate-900 sm:text-2xl">SLA Policies</h1>
           <p className="text-sm text-slate-500 sm:text-base">
-            Response and resolution deadlines by ticket priority
+            Service Level Agreement — how fast agents must reply by priority
           </p>
-          <p className="mt-1 text-xs text-slate-400">API: GET/POST /api/me/sla/</p>
         </div>
         <Button variant="secondary" className="w-full sm:w-auto" onClick={() => setShowForm((v) => !v)}>
           Add Policy
         </Button>
       </div>
 
-      <p className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
-        SLA policies define how fast agents must respond and resolve tickets for each priority level.
-        When a ticket is created, the matching policy sets the <code className="text-xs">sla_due_at</code> deadline.
-      </p>
+      <div className="rounded-xl border border-sky-100 bg-sky-50 px-4 py-3 text-sm text-sky-950">
+        <p className="font-medium">What is SLA?</p>
+        <p className="mt-1 text-sky-900/90">
+          SLA (Service Level Agreement) sets the clock for each ticket priority: how many hours until
+          the first agent reply, and how many hours until the ticket should be resolved. When AI (or
+          the system) assigns a priority like urgent/high/medium/low, the matching active policy here
+          calculates the ticket deadline (<code className="text-xs">sla_due_at</code>).
+        </p>
+      </div>
 
       {error && <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">{error}</p>}
 

@@ -16,6 +16,7 @@ import clsx from 'clsx';
 import { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import type { UserRole } from '../types';
+import { NotificationBell } from '../components/ui/NotificationBell';
 
 interface NavItem {
   to: string;
@@ -33,7 +34,6 @@ const navByRole: Record<UserRole, NavItem[]> = {
   agent: [
     { to: '/agent', label: 'Dashboard', icon: LayoutDashboard },
     { to: '/agent/tickets', label: 'Assigned Tickets', icon: Ticket },
-    { to: '/agent/chat', label: 'Live Chat', icon: MessageSquare },
   ],
   admin: [
     { to: '/admin', label: 'Dashboard', icon: LayoutDashboard },
@@ -59,7 +59,7 @@ export function DashboardLayout() {
   };
 
   return (
-    <div className="min-h-dvh bg-slate-50 lg:flex">
+    <div className="flex h-dvh overflow-hidden bg-slate-50">
       {sidebarOpen && (
         <div
           className="fixed inset-0 z-40 bg-black/30 lg:hidden"
@@ -70,12 +70,12 @@ export function DashboardLayout() {
 
       <aside
         className={clsx(
-          'fixed inset-y-0 left-0 z-50 flex w-64 max-w-[85vw] flex-col bg-slate-900 transition-transform duration-200',
+          'fixed inset-y-0 left-0 z-50 flex h-dvh w-64 max-w-[85vw] flex-col bg-slate-900 transition-transform duration-200',
           'lg:static lg:z-auto lg:max-w-none lg:shrink-0 lg:translate-x-0',
           sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0',
         )}
       >
-        <div className="flex items-center gap-3 border-b border-slate-700 px-4 py-4 sm:px-6 sm:py-5">
+        <div className="flex shrink-0 items-center gap-3 border-b border-slate-700 px-4 py-4 sm:px-6 sm:py-5">
           <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand-600">
             <Bot className="h-5 w-5 text-white" />
           </div>
@@ -93,7 +93,7 @@ export function DashboardLayout() {
           </button>
         </div>
 
-        <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-4">
+        <nav className="min-h-0 flex-1 space-y-1 overflow-y-auto px-3 py-4">
           {navItems.map((item) => (
             <NavLink
               key={item.to}
@@ -113,7 +113,7 @@ export function DashboardLayout() {
           ))}
         </nav>
 
-        <div className="border-t border-slate-700 p-4">
+        <div className="shrink-0 border-t border-slate-700 p-4">
           <div className="mb-3 flex items-center gap-3">
             <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-brand-600 text-sm font-bold text-white">
               {user.name.charAt(0)}
@@ -134,8 +134,8 @@ export function DashboardLayout() {
         </div>
       </aside>
 
-      <div className="flex min-h-dvh min-w-0 flex-1 flex-col">
-        <header className="sticky top-0 z-30 flex items-center gap-3 border-b border-slate-200 bg-white px-4 py-3 lg:px-8">
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+        <header className="sticky top-0 z-30 flex shrink-0 items-center gap-3 border-b border-slate-200 bg-white px-4 py-3 lg:px-8">
           <button
             type="button"
             className="shrink-0 text-slate-600 lg:hidden"
@@ -145,14 +145,9 @@ export function DashboardLayout() {
             <Menu className="h-6 w-6" />
           </button>
           <div className="min-w-0 flex-1" />
-          <span className="hidden shrink-0 rounded-full bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-700 sm:inline">
-            Live API
-          </span>
-          <span className="shrink-0 rounded-full bg-emerald-50 px-2 py-1 text-xs font-medium text-emerald-700 sm:hidden">
-            Live
-          </span>
+          <NotificationBell />
         </header>
-        <main className="min-w-0 flex-1 overflow-x-hidden p-4 sm:p-6 lg:p-8">
+        <main className="min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto p-4 sm:p-6 lg:p-8">
           <Outlet />
         </main>
       </div>

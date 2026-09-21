@@ -12,7 +12,6 @@ import { CustomerChatPage } from '../pages/customer/CustomerChatPage';
 import { CreateTicketPage } from '../pages/customer/CreateTicketPage';
 import { AgentDashboard } from '../pages/agent/AgentDashboard';
 import { AgentTicketsPage } from '../pages/agent/AgentTicketsPage';
-import { AgentChatPage } from '../pages/agent/AgentChatPage';
 import { AdminDashboard } from '../pages/admin/AdminDashboard';
 import { KnowledgeBasePage } from '../pages/admin/KnowledgeBasePage';
 import { SLAPoliciesPage } from '../pages/admin/SLAPoliciesPage';
@@ -54,7 +53,6 @@ export function AppRouter() {
           >
             <Route path="/agent" element={<AgentDashboard />} />
             <Route path="/agent/tickets" element={<AgentTicketsPage />} />
-            <Route path="/agent/chat" element={<AgentChatPage />} />
           </Route>
 
           {/* Admin routes */}

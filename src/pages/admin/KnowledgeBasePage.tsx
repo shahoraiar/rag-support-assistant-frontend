@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Upload, Trash2 } from 'lucide-react';
+import { ExternalLink, Trash2, Upload } from 'lucide-react';
 import {
   deleteKnowledgeDocument,
   fetchKnowledgeDocuments,
@@ -27,6 +27,8 @@ function mapDocument(doc: KnowledgeDocumentApi): KnowledgeDocument {
     uploadedBy: doc.uploaded_by,
     pageCount: doc.page_count ?? undefined,
     chunkCount: doc.chunk_count,
+    fileUrl: doc.file_url ?? undefined,
+    errorMessage: doc.error_message || undefined,
     createdAt: doc.created_at,
   };
 }
@@ -89,7 +91,9 @@ export function KnowledgeBasePage() {
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Knowledge Base</h1>
           <p className="text-slate-500">Documents for RAG — upload PDFs, FAQs, and docs</p>
-          <p className="mt-1 text-xs text-slate-400">API: POST /api/me/knowledge/documents/</p>
+          <p className="mt-1 text-xs text-slate-400">
+            Sample file: docs/samples/SupportAI_Knowledge_Base.pdf
+          </p>
         </div>
         <Button
           className="w-full sm:w-auto"
@@ -114,7 +118,10 @@ export function KnowledgeBasePage() {
         className={`rounded-xl border-2 border-dashed p-6 text-center transition sm:p-8 ${
           dragOver ? 'border-brand-400 bg-brand-50' : 'border-slate-200 bg-slate-50'
         }`}
-        onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+        onDragOver={(e) => {
+          e.preventDefault();
+          setDragOver(true);
+        }}
         onDragLeave={() => setDragOver(false)}
         onDrop={(e) => {
           e.preventDefault();
@@ -124,7 +131,7 @@ export function KnowledgeBasePage() {
       >
         <Upload className="mx-auto h-10 w-10 text-slate-300" />
         <p className="mt-2 font-medium text-slate-600">Drag & drop files here</p>
-        <p className="text-sm text-slate-400">PDF, DOCX, TXT — uploaded to backend media storage</p>
+        <p className="text-sm text-slate-400">PDF, DOCX, TXT — saved to media storage and openable anytime</p>
       </div>
 
       {loading ? (
@@ -139,11 +146,34 @@ export function KnowledgeBasePage() {
                 </div>
                 <div className="min-w-0 flex-1">
                   <h3 className="truncate font-medium text-slate-900">{doc.title}</h3>
-                  <p className="text-xs text-slate-400">Uploaded {new Date(doc.createdAt).toLocaleDateString()}</p>
-                  <div className="mt-2 flex items-center gap-2">
+                  <p className="text-xs text-slate-400">
+                    Uploaded {new Date(doc.createdAt).toLocaleDateString()}
+                  </p>
+                  <div className="mt-2 flex flex-wrap items-center gap-2">
                     <Badge label={doc.status} variant="doc" value={doc.status} />
                     {doc.chunkCount != null && (
                       <span className="text-xs text-slate-400">{doc.chunkCount} chunks</span>
+                    )}
+                    {doc.pageCount != null && (
+                      <span className="text-xs text-slate-400">{doc.pageCount} pages</span>
+                    )}
+                  </div>
+                  {doc.errorMessage && (
+                    <p className="mt-1 line-clamp-2 text-xs text-red-500">{doc.errorMessage}</p>
+                  )}
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {doc.fileUrl ? (
+                      <a
+                        href={doc.fileUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-xs font-medium text-slate-700 hover:border-brand-300 hover:text-brand-700"
+                      >
+                        <ExternalLink className="h-3.5 w-3.5" />
+                        Open
+                      </a>
+                    ) : (
+                      <span className="text-xs text-slate-400">No file saved</span>
                     )}
                   </div>
                 </div>

@@ -165,7 +165,7 @@ export function RegisterPage() {
           <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">{error}</p>
         )}
 
-        <Button type="submit" className="w-full" disabled={loading}>
+        <Button type="submit" className="w-full" loading={loading}>
           {loading ? 'Creating account…' : 'Create account'}
         </Button>
       </form>

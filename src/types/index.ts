@@ -96,6 +96,8 @@ export interface KnowledgeDocument {
   uploadedBy: string;
   pageCount?: number;
   chunkCount?: number;
+  fileUrl?: string;
+  errorMessage?: string;
   createdAt: string;
 }
 

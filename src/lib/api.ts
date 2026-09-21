@@ -156,7 +156,20 @@ export async function apiFetch<T>(path: string, options: RequestInit = {}, retry
 
   if (!response.ok) {
     const error = await response.json().catch(() => ({}));
-    let message = error.detail || error.message || `Request failed (${response.status})`;
+    let message = error.detail || error.message;
+    if (!message && typeof error === 'object' && error !== null) {
+      const parts = Object.entries(error).flatMap(([key, value]) => {
+        if (key === 'detail' || key === 'message') return [];
+        const text = Array.isArray(value)
+          ? value.map((v) => (typeof v === 'string' ? v : String(v))).join(', ')
+          : typeof value === 'string'
+            ? value
+            : JSON.stringify(value);
+        return text ? [`${key}: ${text}`] : [];
+      });
+      if (parts.length) message = parts.join(' ');
+    }
+    if (!message) message = `Request failed (${response.status})`;
     if (typeof message !== 'string') {
       if (Array.isArray(message)) message = message.join(', ');
       else if (typeof message === 'object') {
@@ -357,6 +370,25 @@ export async function fetchAgents(): Promise<User[]> {
   return unwrapList(data).map(mapApiUser);
 }
 
+export async function fetchCustomers(): Promise<User[]> {
+  const data = await apiFetch<Paginated<ApiUser>>('/api/me/customers/');
+  return unwrapList(data).map(mapApiUser);
+}
+
+export async function adminSetAgentPassword(
+  agentId: number | string,
+  password: string,
+  confirmPassword: string,
+): Promise<{ detail: string }> {
+  return apiFetch(`/api/me/agents/${agentId}/set-password/`, {
+    method: 'POST',
+    body: JSON.stringify({
+      password,
+      confirm_password: confirmPassword,
+    }),
+  });
+}
+
 export async function fetchAgentWorkload(): Promise<AgentWorkload[]> {
   const data = await apiFetch<AgentWorkloadApi[]>('/api/me/agents/workload/');
   return data.map((item) => ({
@@ -390,6 +422,8 @@ export type KnowledgeDocumentApi = {
   uploaded_by: string;
   page_count?: number | null;
   chunk_count?: number;
+  file_url?: string | null;
+  error_message?: string;
   created_at: string;
 };
 
@@ -424,6 +458,13 @@ export async function deleteKnowledgeDocument(id: number): Promise<void> {
   await apiFetch(`/api/me/knowledge/documents/${id}/`, { method: 'DELETE' });
 }
 
+export async function setAgentAvailability(isAvailable: boolean): Promise<void> {
+  await apiFetch('/api/me/agents/me/availability/', {
+    method: 'PATCH',
+    body: JSON.stringify({ is_available: isAvailable }),
+  });
+}
+
 export async function fetchSLAPolicies(): Promise<SLAPolicyApi[]> {
   const data = await apiFetch<Paginated<SLAPolicyApi>>('/api/me/sla/');
   return unwrapList(data);
@@ -452,6 +493,7 @@ export type ChatMessageApi = {
 
 export type ChatSessionApi = {
   id: number;
+  chat_uid: string;
   customer_id: number;
   customer_name: string;
   ticket_id: string | null;
@@ -501,4 +543,31 @@ export async function escalateChatSession(sessionId: number): Promise<{
   system_message?: ChatMessageApi;
 }> {
   return apiFetch(`/api/me/chat/sessions/${sessionId}/escalate/`, { method: 'POST' });
+}
+
+export type NotificationApi = {
+  id: number;
+  notification_type: string;
+  title: string;
+  message: string;
+  is_read: boolean;
+  metadata?: Record<string, unknown>;
+  created_at: string;
+};
+
+export async function fetchNotifications(): Promise<{
+  unread_count: number;
+  results: NotificationApi[];
+}> {
+  return apiFetch('/api/me/notifications/');
+}
+
+export async function markNotificationsRead(payload: {
+  ids?: number[];
+  mark_all?: boolean;
+}): Promise<{ updated: number; unread_count: number }> {
+  return apiFetch('/api/me/notifications/mark-read/', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
 }
