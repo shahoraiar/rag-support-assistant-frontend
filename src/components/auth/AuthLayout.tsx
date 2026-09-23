@@ -12,14 +12,14 @@ const features = ['RAG Pipeline', 'Real-time Chat', 'SLA Monitoring', 'Auto Clas
 export function AuthLayout({ children, title, subtitle }: AuthLayoutProps) {
   return (
     <div className="flex min-h-dvh overflow-x-hidden">
-      <div className="hidden w-1/2 flex-col justify-between bg-slate-900 p-12 lg:flex">
+      <div className="hidden w-1/2 flex-col bg-slate-900 p-12 lg:flex">
         <div className="flex items-center gap-3">
           <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-600">
             <Bot className="h-6 w-6 text-white" />
           </div>
           <span className="text-xl font-bold text-white">SupportAI</span>
         </div>
-        <div>
+        <div className="flex flex-1 flex-col justify-center">
           <h2 className="text-4xl font-bold leading-tight text-white">
             AI-Powered Customer Support with RAG
           </h2>
@@ -37,7 +37,18 @@ export function AuthLayout({ children, title, subtitle }: AuthLayoutProps) {
             ))}
           </div>
         </div>
-        <p className="text-sm text-slate-500">Portfolio Demo — Frontend with Mock Data</p>
+        <p className="text-sm text-slate-500">
+          © {new Date().getFullYear()}{' '}
+          <a
+            href="https://shahoraiar.vercel.app/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-slate-400 underline-offset-2 transition-colors hover:text-white hover:underline"
+          >
+            Shahoraiar Hossain
+          </a>
+          . All rights reserved.
+        </p>
       </div>
 
       <div className="flex min-w-0 flex-1 flex-col items-center justify-center px-4 py-8 sm:px-6 sm:py-10">
