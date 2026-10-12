@@ -33,14 +33,34 @@ npm run dev
 
 Open: http://localhost:5173
 
+## Docker
+
+The image builds the app with Node and serves it with nginx. `VITE_*` values are baked in at build time, so rebuild after changing them.
+
+**Local** (talks to Django at `http://localhost:8000`):
+
+```bash
+docker compose up -d --build
+```
+
+Open: http://localhost:5173 (same origin as `npm run dev`, already allowed by the backend's local CORS)
+
+**Production (AWS EC2)** — values come from the server's `.env` (both variables required). Start the backend's `docker-compose.prod.yml` first: it creates the `supportai` network and its Caddy serves this container over HTTPS.
+
+```bash
+docker compose -f docker-compose.prod.yml up -d --build
+```
+
+Node/Vite are only used inside the image build; the server just needs Docker.
+
 ## Environment
 
-Copy `.env.example` to `.env` and set:
+All values live in a single `.env` (not committed):
 
-| Variable | Description |
-|----------|-------------|
-| `VITE_GOOGLE_CLIENT_ID` | Google OAuth Web Client ID |
-| `VITE_API_BASE_URL` | Backend API base URL (optional in local; Vite proxies `/api` to `localhost:8000`) |
+| Variable | Local | Production |
+|----------|-------|------------|
+| `VITE_GOOGLE_CLIENT_ID` | Required | Required |
+| `VITE_API_BASE_URL` | Leave commented — dev server proxies to `http://localhost:8000`, local Docker defaults to it | Required: `https://rag-support-api.duckdns.org` |
 
 ## Demo Login
 

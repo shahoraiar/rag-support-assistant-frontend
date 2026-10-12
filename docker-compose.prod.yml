@@ -1,0 +1,19 @@
+# Production (AWS EC2). Start the backend's docker-compose.prod.yml first —
+# it creates the "supportai" network, and its Caddy serves this container over HTTPS.
+#   docker compose -f docker-compose.prod.yml up -d --build
+# VITE_* values come from .env (both must be set, the build fails otherwise).
+services:
+  frontend:
+    build:
+      context: .
+      args:
+        VITE_GOOGLE_CLIENT_ID: ${VITE_GOOGLE_CLIENT_ID:?set VITE_GOOGLE_CLIENT_ID in .env}
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL:?set VITE_API_BASE_URL in .env}
+    container_name: supportai_frontend
+    restart: unless-stopped
+    # No host ports — Caddy proxies
+
+networks:
+  default:
+    name: supportai
+    external: true
