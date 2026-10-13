@@ -33,12 +33,11 @@ export function LoginPage() {
     navigate(role === 'customer' ? '/customer' : role === 'agent' ? '/agent' : '/admin');
   };
 
-  const handleLogin = async (loginEmail?: string, loginPassword = 'demo1234') => {
+  const handleLogin = async (loginEmail = email, loginPassword = password) => {
     setError('');
     setSubmitting(true);
     try {
-      const e = loginEmail || email;
-      const loggedIn = await login(e, loginEmail ? loginPassword : password || loginPassword);
+      const loggedIn = await login(loginEmail, loginPassword);
       if (loggedIn) {
         redirectByRole(loggedIn.role);
         return;
@@ -141,7 +140,7 @@ export function LoginPage() {
               key={acc.email}
               type="button"
               disabled={submitting}
-              onClick={() => handleLogin(acc.email)}
+              onClick={() => handleLogin(acc.email, acc.password)}
               className="flex w-full flex-col gap-1 rounded-lg border border-slate-200 px-4 py-3 text-left text-sm transition hover:border-brand-300 hover:bg-brand-50 disabled:opacity-50 sm:flex-row sm:items-center sm:justify-between"
             >
               <span className="font-medium text-slate-700">{acc.label}</span>

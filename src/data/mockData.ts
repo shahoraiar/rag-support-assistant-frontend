@@ -277,8 +277,9 @@ export const mockAgentWorkloads: AgentWorkload[] = [
   { agentId: 'u4', agentName: 'Jamal Uddin', openTickets: 6, maxTickets: 10, isAvailable: true },
 ];
 
+// Must match backend: accountssu/management/commands/seed_demo_data.py
 export const demoLoginAccounts = [
-  { role: 'customer' as const, email: 'rahim@example.com', label: 'Customer (Rahim)' },
-  { role: 'agent' as const, email: 'sara@company.com', label: 'Agent (Sara)' },
-  { role: 'admin' as const, email: 'admin@company.com', label: 'Admin' },
+  { role: 'customer' as const, email: 'rahim@gmail.com', password: '123', label: 'Customer (Rahim)' },
+  { role: 'agent' as const, email: 'agent1@gmail.com', password: '123', label: 'Agent (Sara)' },
+  { role: 'admin' as const, email: 'admin8080@gmail.com', password: '123', label: 'Admin' },
 ];
